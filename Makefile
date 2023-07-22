@@ -6,20 +6,18 @@
 all: data
 data: demand.Rout emsbed.Rout firestation.Rout
 
+# demand estimation from ohca occurrence estimation
 demand.Rout: R/demand.R
 	R CMD BATCH R/demand.R
-	
+
+# ems beds from hira hospital information
 emsbed.Rout: R/emsbed.R demand.Rout
-	R CMD BATCH R/emsbed.R
+	R CMD BATCH R/emsbed.R		
 	
-firestation.Rout: R/firestation.R emsbed.Rout
-	R CMD BATCH R/firestation.R
+firestation.Rout: R/firestation.R
+	R CMD BATCH R/firestation.R	
 	
 #clean_all:
 #	find . | egrep ".*((\.(RData|Rout|Rhistory))|~)$$" | xargs rm
 #	rm -rf auto
-
-#test.Rout: R/test.R
-#	R CMD BATCH R/test.R
-
 

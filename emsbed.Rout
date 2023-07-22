@@ -1,0 +1,111 @@
+
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+- Project '~/Projects/2023-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
+> #' @title data_ems_bed
+> #' @initialized 7-21-23
+> #' @description
+> #'      데이터는 hira에서 다운받으며, 전국 병의원 및 약국 현황 자료임.' 
+> #' @update
+> 
+> source("load_pkgs.R")
+> 
+> load_pkgs(c("tidyverse", "tmap", "sf", "here", "openxlsx"))
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.2     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+which was just loaded, will retire in October 2023.
+Please refer to R-spatial evolution reports for details, especially
+https://r-spatial.org/r/2023/05/15/evolution4.html.
+It may be desirable to make the sf package available;
+package maintainers should consider adding sf to Suggests:.
+The sp package is now running under evolution status 2
+     (status 2 uses the sf package in place of rgdal)
+Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
+here() starts at /home/kyusik/Projects/2023-03-ohca_korea
+> 
+> 
+> poi_xy <- read.xlsx(file.path("data/raw/hira", "hospital_service_infomation_2021.12.xlsx")) %>% as_tibble # 1.병원정보서비스
+> beds <- read.xlsx(file.path("data/raw/hira", "facility_information_2021.12.xlsx")) %>% as_tibble # 3.~시설정보
+> 
+> # head(poi_xy)
+> # head(beds)
+> 
+> #' What I need?
+> #' poi_xy: 암호화요양기호, 요양기관명, 종별코드명, 시도코드명, x좌표, y좌표
+> #' beds: 암호화요양기호, 응급실병상수
+> 
+> poi_xy <- poi_xy %>%
++         select(암호화요양기호, 요양기관명, 종별코드명, 시도코드명, x좌표, y좌표)
+> beds <- beds %>%
++         select(암호화요양기호, 응급실병상수)
+> 
+> beds <- beds %>%
++         filter(응급실병상수 > 0 )
+> # nrow(beds)
+> # Join beds to poi
+> poi <- left_join(poi_xy, beds, by="암호화요양기호")
+> # poi
+> 
+> poi <- poi %>% filter(!is.na(응급실병상수))
+> 
+> poi <- poi %>% 
++         mutate(x좌표 = as.numeric(x좌표),
++                y좌표 = as.numeric(y좌표), 
++                beds = as.numeric(응급실병상수))
+> 
+> # 세종, 대전, 충북, 충남
+> poi <- poi %>%
++         filter(시도코드명 %in% c("세종", "대전", "충북", "충남"))
+> poi <- poi %>%
++         rename(id = 암호화요양기호, name = 요양기관명, type = "종별코드명") %>%
++         select(id, name, type, beds, x좌표, y좌표)
+> 
+> # XY to point geometry
+> poi <- st_as_sf(poi, coords = c("x좌표", "y좌표"), crs=4326)
+> # qtm(poi)
+> 
+> # Get poi within study area
+> studyarea <- read_sf(file.path("data/tidy", "study_area_sgg.gpkg"))
+> studyarea_buffer <- read_sf(file.path("data/tidy", "study_area_buffer.gpkg"))
+> poi <- st_transform(poi, st_crs(studyarea))
+> 
+> idx <- st_intersects(poi, studyarea_buffer, sparse = TRUE)
+> poi <- poi[which(lengths(idx) > 0), ]
+> 
+> # qtm(studyarea_buffer) + qtm(studyarea) + qtm(poi)
+> 
+> # export firestations and safecenters
+> write_sf(poi, file.path("data/tidy", "poi_emd_beds.gpkg"))
+> 
+> 
+> # hist(poi$beds)
+> 
+> proc.time()
+   user  system elapsed 
+ 20.098   1.754  21.203 

@@ -1,0 +1,453 @@
+
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+- Project '~/Projects/2023-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
+[Previously saved workspace restored]
+
+> #' @title data_firestation
+> #' @initialized 7-21-23
+> #' @description
+> #'      데이터는 data.go.kr에서 다운받으며, 소방청 전국 소방서 및 119 안전센터 정보 2021년 12월 31일 자료임. 
+> #' @update
+> 
+> 
+> source("load_pkgs.R")
+> load_pkgs(c("tidyverse", "tmap", "sf", "here", "openxlsx", "data.table"))
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.2     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+which was just loaded, will retire in October 2023.
+Please refer to R-spatial evolution reports for details, especially
+https://r-spatial.org/r/2023/05/15/evolution4.html.
+It may be desirable to make the sf package available;
+package maintainers should consider adding sf to Suggests:.
+The sp package is now running under evolution status 2
+     (status 2 uses the sf package in place of rgdal)
+Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
+here() starts at /home/kyusik/Projects/2023-03-ohca_korea
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+> 
+> 
+> poi <- read_csv("./data/raw/firestation_sido_20200121.csv", skip=1)
+Rows: 224 Columns: 6
+── Column specification ────────────────────────────────────────────────────────
+Delimiter: ","
+chr (5): 본부명, 소방서, 주소, 전화번호, FAX
+dbl (1): 순번
+
+ℹ Use `spec()` to retrieve the full column specification for this data.
+ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
+> poi
+# A tibble: 224 × 6
+    순번 본부명           소방서       주소                       전화번호 FAX  
+   <dbl> <chr>            <chr>        <chr>                      <chr>    <chr>
+ 1     1 서울소방재난본부 강남소방서   서울특별시 강남구 테헤란…  02-6981… 02-5…
+ 2     2 서울소방재난본부 강동소방서   서울특별시 강동구 성내로 … 02-470-… 02-4…
+ 3     3 서울소방재난본부 강북소방서   서울특별시 강북구 한천로 … 02-6946… 02-6…
+ 4     4 서울소방재난본부 강서소방서   서울특별시 강서구 양천로 … 02-3663… 02-3…
+ 5     5 서울소방재난본부 관악소방서   서울특별시 관악구 관악로 … 02-6981… 02-8…
+ 6     6 서울소방재난본부 광진소방서   서울특별시 광진구 광나루…  02-457-… 02-4…
+ 7     7 서울소방재난본부 구로소방서   서울특별시 구로구 경인로 … 02-2618… 02-2…
+ 8     8 서울소방재난본부 노원소방서   서울특별시 노원구 한글비…  02-6981… 02-9…
+ 9     9 서울소방재난본부 도봉소방서   서울특별시 도봉구 도봉로 … 02-6981… 02-3…
+10    10 서울소방재난본부 동대문소방서 서울특별시 동대문구 장한…  02-6942… 02-2…
+# ℹ 214 more rows
+> 
+> poi <- poi %>%
++         filter(grepl("충북|세종|대전|충남", 본부명))
+> poi
+# A tibble: 36 × 6
+    순번 본부명       소방서       주소                           전화번호 FAX  
+   <dbl> <chr>        <chr>        <chr>                          <chr>    <chr>
+ 1    59 대전소방본부 대덕소방서   대전광역시 대덕구 계족로 682   042-270… 042-…
+ 2    60 대전소방본부 동부소방서   대전광역시 동구 계족로 300     042-270… 042-…
+ 3    61 대전소방본부 둔산소방서   대전광역시 서구 갈마중로 15    042-270… 042-…
+ 4    62 대전소방본부 서부소방서   대전광역시 서구 북부서로 67    042-270… 042-…
+ 5    63 대전소방본부 유성소방서   대전광역시 유성구 대덕대로 516 042-270… 042-…
+ 6    68 세종소방본부 중부소방서   울산광역시 중구 종가로 205     052-210… 052-…
+ 7    69 세종소방본부 세종소방서   세종특별자치시 절재로 301(어…  044-300… 044-…
+ 8    70 세종소방본부 조치원소방서 세종특별자치시 조치원읍 세종…  044-300… 044-…
+ 9   124 충북소방본부 괴산소방서   충청북도 괴산군 괴산읍 괴강로… 043-760… 043-…
+10   125 충북소방본부 단양소방서   충청북도 단양군 단양읍 별곡리… 043-767… 043-…
+# ℹ 26 more rows
+> 
+> firestation <- read.csv("./data/raw/firestation_sido_2021.12.31.csv") %>%
++         as_tibble# 소방서
+> firestation
+# A tibble: 230 × 5
+    순번 본부명 소방서       주소                                       전화번호
+   <int> <chr>  <chr>        <chr>                                      <chr>   
+ 1     1 서울   종로소방서   서울특별시 종로구 율곡로 78(운니동 114-2)  02-6981…
+ 2     2 서울   중부소방서   서울특별시 중구 퇴계로 394(무학동)         02-2233…
+ 3     3 서울   광진소방서   서울특별시 광진구 광나루로 480 (구의동)    02-6981…
+ 4     4 서울   용산소방서   서울특별시 용산구 한강대로 167 (한강로2가) 02-6943…
+ 5     5 서울   동대문소방서 서울특별시 동대문구 장한로 34 (장안동)     02-6942…
+ 6     6 서울   영등포소방서 서울특별시 영등포구 문래로 197 (영등포동4… 02-6981…
+ 7     7 서울   성북소방서   서울특별시 성북구 종암로 27길 3 (종암동)   02-6981…
+ 8     8 서울   은평소방서   서울특별시 은평구 통일로 962 (진관동)      02-6981…
+ 9     9 서울   강남소방서   서울특별시 강남구 테헤란로 629 (삼성동)    02-6981…
+10    10 서울   서초소방서   서울특별시 서초구 사평대로 67 (반포동)     02-594-…
+# ℹ 220 more rows
+> 
+> firesafe <- read.csv("./data/raw/fire_safe_2021.csv") %>% as_tibble
+> 
+> firesafe
+# A tibble: 1,100 × 6
+    순번 시도본부 소방서 X119안전센터명    주소                         전화번호
+   <int> <chr>    <chr>  <chr>             <chr>                        <chr>   
+ 1     1 서울     종로   세종로119안전센터 서울특별시 종로구 율곡로 78… 02-6981…
+ 2     2 서울     종로   신교119안전센터   서울특별시 종로구 자하문로 … 02-737-…
+ 3     3 서울     종로   종로119안전센터   서울특별시 종로구 돈화문로 … 02-747-…
+ 4     4 서울     종로   연건119안전센터   서울특별시 종로구 대학로 91… 02-747-…
+ 5     5 서울     종로   신영119안전센터   서울특별시 종로구 진흥로 47… 02-391-…
+ 6     6 서울     종로   숭인119안전센터   서울특별시 종로구 숭인동길 … 02-929-…
+ 7     7 서울     중부   을지로119안전센터 서울특별시 중구 을지로45길 … 02-2235…
+ 8     8 서울     중부   무학119안전센터   서울특별시 중구 퇴계로 394 … 02-2252…
+ 9     9 서울     중부   충무로119안전센터 서울특별시 중구 충무로 11(…  02-2265…
+10    10 서울     중부   회현119안전센터   서울특별시 중구 소공로 30(…  02-775-…
+# ℹ 1,090 more rows
+> 
+> 
+> firestation <- firestation %>%
++         filter(본부명 %in% c("세종", "대전", "충북", "충남"))
+> firestation <- firestation %>%
++         select(본부명, 소방서, 주소)
+> firesafe <- firesafe %>%
++         filter(시도본부 %in% c("세종", "대전", "충북", "충남")) %>%
++         select(시도본부, 소방서, X119안전센터명, 주소)
+> 
+> 
+> # geocoding
+> library(jsonlite)
+
+Attaching package: ‘jsonlite’
+
+The following object is masked from ‘package:purrr’:
+
+    flatten
+
+> library(httr)
+> 
+> ## API 활용 기본정보 입력
+> # NAVER 용
+> naver_API_ID<-'8m6hkay386'
+> naver_API_key<-'ehKVpacsL8sYrV7nPLox9nopzR0LxmFU4OMRdw3L'
+> 
+> url<-"https://naveropenapi.apigw.ntruss.com/map-geocode/v2/geocode" # geocoding
+> 
+> df <- firestation
+> for (row in 1:nrow(df)){
++         
++         query <- df[row, "주소"]
++         addr_json <- GET(url = url,
++                          query = list(query=query), 
++                          add_headers("X-NCP-APIGW-API-KEY-ID"= naver_API_ID,
++                                      "X-NCP-APIGW-API-KEY" = naver_API_key,
++                                      Accept="application/json")) %>%
++                 content(as="text") %>%
++                 fromJSON()
++         
++         tmp <- tibble(addr_json$addresses)
++         if (nrow(tmp) != 0) {
++                 df[row, "x"] <- tmp[1, "x"]
++                 df[row, "y"] <- tmp[1, "y"]
++         }
++         
++         cat(row, "/", nrow(df), "\n")
++ }
+1 / 35 
+2 / 35 
+3 / 35 
+4 / 35 
+5 / 35 
+6 / 35 
+7 / 35 
+8 / 35 
+9 / 35 
+10 / 35 
+11 / 35 
+12 / 35 
+13 / 35 
+14 / 35 
+15 / 35 
+16 / 35 
+17 / 35 
+18 / 35 
+19 / 35 
+20 / 35 
+21 / 35 
+22 / 35 
+23 / 35 
+24 / 35 
+25 / 35 
+26 / 35 
+27 / 35 
+28 / 35 
+29 / 35 
+30 / 35 
+31 / 35 
+32 / 35 
+33 / 35 
+34 / 35 
+35 / 35 
+> 
+> firestation <- df
+> 
+> df <- firesafe
+> for (row in 1:nrow(df)){
++         
++         query <- df[row, "주소"]
++         addr_json <- GET(url = url,
++                          query = list(query=query), 
++                          add_headers("X-NCP-APIGW-API-KEY-ID"= naver_API_ID,
++                                      "X-NCP-APIGW-API-KEY" = naver_API_key,
++                                      Accept="application/json")) %>%
++                 content(as="text") %>%
++                 fromJSON()
++         
++         tmp <- tibble(addr_json$addresses)
++         if (nrow(tmp) != 0) {
++                 df[row, "x"] <- tmp[1, "x"]
++                 df[row, "y"] <- tmp[1, "y"]
++         }
++         
++         cat(row, "/", nrow(df), "\n")
++ }
+1 / 158 
+2 / 158 
+3 / 158 
+4 / 158 
+5 / 158 
+6 / 158 
+7 / 158 
+8 / 158 
+9 / 158 
+10 / 158 
+11 / 158 
+12 / 158 
+13 / 158 
+14 / 158 
+15 / 158 
+16 / 158 
+17 / 158 
+18 / 158 
+19 / 158 
+20 / 158 
+21 / 158 
+22 / 158 
+23 / 158 
+24 / 158 
+25 / 158 
+26 / 158 
+27 / 158 
+28 / 158 
+29 / 158 
+30 / 158 
+31 / 158 
+32 / 158 
+33 / 158 
+34 / 158 
+35 / 158 
+36 / 158 
+37 / 158 
+38 / 158 
+39 / 158 
+40 / 158 
+41 / 158 
+42 / 158 
+43 / 158 
+44 / 158 
+45 / 158 
+46 / 158 
+47 / 158 
+48 / 158 
+49 / 158 
+50 / 158 
+51 / 158 
+52 / 158 
+53 / 158 
+54 / 158 
+55 / 158 
+56 / 158 
+57 / 158 
+58 / 158 
+59 / 158 
+60 / 158 
+61 / 158 
+62 / 158 
+63 / 158 
+64 / 158 
+65 / 158 
+66 / 158 
+67 / 158 
+68 / 158 
+69 / 158 
+70 / 158 
+71 / 158 
+72 / 158 
+73 / 158 
+74 / 158 
+75 / 158 
+76 / 158 
+77 / 158 
+78 / 158 
+79 / 158 
+80 / 158 
+81 / 158 
+82 / 158 
+83 / 158 
+84 / 158 
+85 / 158 
+86 / 158 
+87 / 158 
+88 / 158 
+89 / 158 
+90 / 158 
+91 / 158 
+92 / 158 
+93 / 158 
+94 / 158 
+95 / 158 
+96 / 158 
+97 / 158 
+98 / 158 
+99 / 158 
+100 / 158 
+101 / 158 
+102 / 158 
+103 / 158 
+104 / 158 
+105 / 158 
+106 / 158 
+107 / 158 
+108 / 158 
+109 / 158 
+110 / 158 
+111 / 158 
+112 / 158 
+113 / 158 
+114 / 158 
+115 / 158 
+116 / 158 
+117 / 158 
+118 / 158 
+119 / 158 
+120 / 158 
+121 / 158 
+122 / 158 
+123 / 158 
+124 / 158 
+125 / 158 
+126 / 158 
+127 / 158 
+128 / 158 
+129 / 158 
+130 / 158 
+131 / 158 
+132 / 158 
+133 / 158 
+134 / 158 
+135 / 158 
+136 / 158 
+137 / 158 
+138 / 158 
+139 / 158 
+140 / 158 
+141 / 158 
+142 / 158 
+143 / 158 
+144 / 158 
+145 / 158 
+146 / 158 
+147 / 158 
+148 / 158 
+149 / 158 
+150 / 158 
+151 / 158 
+152 / 158 
+153 / 158 
+154 / 158 
+155 / 158 
+156 / 158 
+157 / 158 
+158 / 158 
+> 
+> df %>% filter(is.na(x))
+# A tibble: 1 × 6
+  시도본부 소방서 X119안전센터명  주소                             x     y    
+  <chr>    <chr>  <chr>           <chr>                            <chr> <chr>
+1 충북     충주   주덕119안전센터 충청북도 충주시 주덕읍 산양로 35 <NA>  <NA> 
+> firesafe <- df
+> 
+> 
+> firestation$type <- "소방서"
+> firesafe$type <- "안전센터"
+> 
+> firestation <- firestation %>% rename(name = 소방서)
+> firestation <- firestation %>% rename(시도본부 = 본부명)
+> firesafe <- firesafe %>% rename(name = X119안전센터명)
+> firesafe <- firesafe %>% select(-소방서)
+> poi <- rbind.data.frame(firestation, firesafe)
+> poi <- poi %>% filter(!is.na(x))
+> 
+> # xy to point(geom)
+> poi <- st_as_sf(poi, coords = c("x", "y"), crs=4326)
+> qtm(poi)
+> 
+> # Get poi within study area
+> studyarea <- read_sf("./data/tidy/study_area_sgg.gpkg")
+> studyarea_buffer <- read_sf("./data/tidy/study_area_buffer.gpkg")
+> poi <- st_transform(poi, st_crs(studyarea))
+> 
+> idx <- st_intersects(poi, studyarea_buffer, sparse = TRUE)
+> poi <- poi[which(lengths(idx) > 0), ]
+> 
+> qtm(studyarea_buffer) + qtm(studyarea) + qtm(poi)
+> 
+> # export firestations and safecenters
+> write_sf(poi, "./data/tidy/poi_fire.gpkg", delete_layer = TRUE)
+> 
+> 
+> proc.time()
+   user  system elapsed 
+  7.880   1.229 160.822 

@@ -1,0 +1,248 @@
+
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+- Project '~/Projects/2023-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
+> #' @title do_demand_estimation
+> #' @initialized 7-20-23
+> #' @description
+> #'      심정지 발생확률을 실제 자료로부터 추정한 뒤, 각 격자별로 연령별|성별 발생확률을 곱하여 수요를 추정함. 
+> #' @update
+> 
+> source("load_pkgs.R")
+> 
+> load_pkgs(c("tidyverse", "tmap", "sf", "here", "openxlsx", "data.table"))
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.2     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+which was just loaded, will retire in October 2023.
+Please refer to R-spatial evolution reports for details, especially
+https://r-spatial.org/r/2023/05/15/evolution4.html.
+It may be desirable to make the sf package available;
+package maintainers should consider adding sf to Suggests:.
+The sp package is now running under evolution status 2
+     (status 2 uses the sf package in place of rgdal)
+Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
+here() starts at /home/kyusik/Projects/2023-03-ohca_korea
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+> 
+> xlsx <- read.xlsx(xlsxFile = file.path("data/raw", "cardiac_data", "ohca_21.xlsx"), sheet = 1)
+> 
+> cardiac <- xlsx %>% select(H_ADMINCODE, H_ADD_CITY, H_ADD_DIST, P_ADMINCODE, P_ADD_CITY, P_ADD_DIST, H_SEX, AGE)
+> cardiac <- cardiac %>% 
++         mutate_if(is.character, str_trim)
+> # 만약 P_AMINDCODE가 NA면, 환자의 거주지 미상이므로, 병원 정보를 대신 입력함. 
+> 
+> cardiac <- cardiac %>%
++         mutate(
++                 P_ADD_CITY = case_when(is.na(P_ADMINCODE) ~ H_ADD_CITY,
++                                        TRUE ~ P_ADD_CITY),
++                 P_ADD_DIST = case_when(is.na(P_ADMINCODE) ~ H_ADD_DIST,
++                                        TRUE ~ P_ADD_DIST),
++                 P_ADMINCODE = case_when(is.na(P_ADMINCODE) ~ H_ADMINCODE,
++                                         TRUE ~ P_ADMINCODE))
+> cardiac <- cardiac %>%
++         select(P_ADMINCODE, P_ADD_CITY, P_ADD_DIST, H_SEX, AGE) %>%
++         as_tibble
+> 
+> 
+> # study area (census)
+> census <- read_sf(file.path("data/raw", "bnd_sigungu_00_2021_2021/bnd_sigungu_00_2021_2021_2Q.shp"))
+> cheongju <- census %>% filter(grepl("청주", SIGUNGU_NM))
+> cheongju_union <- st_union(cheongju)
+> cheongju_buffer <- st_buffer(cheongju_union, dist=10000)
+> 
+> write_sf(cheongju, file.path("data/tidy", "study_area_sgg.gpkg"))
+> write_sf(cheongju_buffer, file.path("data/tidy", "study_area_buffer.gpkg"))
+> 
+> qtm(cheongju_buffer) + qtm(cheongju_union)
+> idx <- st_intersects(census, cheongju_buffer)
+> census_intersected <- census[which(lengths(idx) > 0), ]
+> # qtm(census_intersected)
+> 
+> remove <- c("상주시", "공주시", "서구", "음성군", "옥천군")
+> census <- census_intersected %>% 
++         filter(!SIGUNGU_NM %in% remove)
+> # qtm(census, text = "SIGUNGU_NM")
+> 
+> # cardiac %>% filter(P_ADMINCODE %in% sgg_cd)
+> 
+> selection <- census$SIGUNGU_NM
+> cardiac <- cardiac %>% 
++         mutate(P_ADD_DIST = case_when(P_ADD_CITY == "세종" ~ "세종시", TRUE ~ P_ADD_DIST)) %>%
++         filter(P_ADD_DIST %in% selection) %>%
++         filter(P_ADD_CITY %in% c("대전", "세종", "충북", "충남"))
+> 
+> # cardiac %>% group_by(P_ADD_DIST) %>%
+> #         summarise(n =n())
+> 
+> 
+> # 연령 및 성별 합산
+> # 성별 - 1:남자, 2:여자
+> 
+> cardiac <- cardiac %>% filter(AGE >= 20)
+> 
+> cardiac <- cardiac %>%
++         mutate(age_group = case_when(AGE %in% 20:29 ~ "20대", 
++                                      AGE %in% 30:39 ~ "30대",
++                                      AGE %in% 40:49 ~ "40대",
++                                      AGE %in% 50:59 ~ "50대",
++                                      AGE %in% 60:69 ~ "60대",
++                                      AGE %in% 70:79 ~ "70대",
++                                      AGE %in% 80:89 ~ "80대",
++                                      AGE >= 90 ~ "90대",
++                                      # AGE >= 100 ~ "100세 이상",
++                                      TRUE ~ "none"))
+> cardiac %>% filter(age_group == "none")
+# A tibble: 0 × 6
+# ℹ 6 variables: P_ADMINCODE <chr>, P_ADD_CITY <chr>, P_ADD_DIST <chr>,
+#   H_SEX <chr>, AGE <dbl>, age_group <chr>
+> 
+> cardiac <- cardiac %>%
++         mutate(sex = case_when(H_SEX == 1 ~ paste(age_group, "남자"),
++                                H_SEX == 2 ~ paste(age_group, "여자"),
++                                TRUE ~ "error"))
+> 
+> ohca_num <- cardiac %>%
++         group_by(P_ADD_DIST, sex) %>%
++         summarise(ohca = n())
+`summarise()` has grouped output by 'P_ADD_DIST'. You can override using the
+`.groups` argument.
+> 
+> grid <- read_sf(file.path("data/raw", "grd500m_ngii.gpkg"))
+> grid_unique <- grid %>% filter(!duplicated(gid))
+> grid_unique <- st_transform(grid_unique, st_crs(census))
+> write_sf(grid_unique, file.path("data/raw", "grid500m_ngii_unique.gpkg"))
+> grid <- grid_unique
+> # rm(grid_unique)
+> 
+> grid_age <- fread(file.path("data/raw", "grd500m_ngii_age_202210.txt"))
+> # head(grid_age)
+> # unique(grid_age$sex)
+> 
+> grid_age <- grid_age %>% mutate(val = case_when(is.na(val) ~ 0, TRUE ~ val))
+> 
+> # check population
+> temp <- grid_age %>% mutate(sex_temp = case_when(grepl("전체", sex) ~ "전체",
++                                                  grepl("남자", sex) ~ "남자", 
++                                                  grepl("여자", sex) ~ "여자"))
+> what <- temp %>%
++         group_by(sex_temp) %>%
++         summarise(val = sum(val))
+> 
+> 
+> # 100세를 90대로 합산
+> grid_age <- grid_age %>%
++         mutate(sex = case_when(sex == "100세 이상 전체" ~ "90대 전체",
++                                sex == "100세 이상 남자" ~ "90대 남자",
++                                sex == "100세 이상 여자" ~ "90대 여자",
++                                TRUE ~ sex))
+> 
+> # 인구가 있는 gid 수집
+> grid_totpop <- grid_age %>% 
++         filter(grepl("전체", sex)) %>%
++         group_by(gid) %>%
++         summarise(totpop = sum(val)) %>%
++         filter(totpop > 0)
+> # pop_gid <- grid_totpop$gid              # grid id with population
+> 
+> grid_pt <- st_centroid(grid)
+Warning message:
+st_centroid assumes attributes are constant over geometries 
+> grid_pt <- st_transform(grid_pt, st_crs(census))
+> idx <- st_intersects(grid_pt, census)
+> grid_pt_intersected <- grid_pt[which(lengths(idx) > 0), ]
+> 
+> gid_list <- grid_pt_intersected$gid
+> temp <- grid_age %>% filter(gid %in% gid_list)
+> temp <- temp %>% as_tibble
+> temp <- temp %>% mutate(val = case_when(is.na(val) ~ 0, TRUE ~ val))
+> temp <- temp %>% filter(!grepl("전체", sex))
+> 
+> grid_pt_census <- st_join(grid_pt_intersected, census)
+> head(grid_pt_census)
+Simple feature collection with 6 features and 4 fields
+Geometry type: POINT
+Dimension:     XY
+Bounding box:  xmin: 981750 ymin: 1877750 xmax: 994750 ymax: 1890250
+Projected CRS: Korea 2000 / Unified CS
+# A tibble: 6 × 5
+  gid                    geom BASE_DATE SIGUNGU_CD SIGUNGU_NM
+  <chr>           <POINT [m]> <chr>     <chr>      <chr>     
+1 다바86b83b (986750 1883750) 20210630  33350      진천군    
+2 다바94b90a (994750 1890250) 20210630  33350      진천군    
+3 다바82b81a (982750 1881250) 20210630  33350      진천군    
+4 다바82a78b (982250 1878750) 20210630  33350      진천군    
+5 다바81b77b (981750 1877750) 20210630  33350      진천군    
+6 다바93a89a (993250 1889250) 20210630  33350      진천군    
+> grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_CD, SIGUNGU_NM)
+> 
+> temp <- temp %>% left_join(grid_pt_census, by="gid")
+> 
+> 
+> # 각 시군구의 연령, 성별 전체 인구 계산
+> sgg_pop <- temp %>% 
++         group_by(SIGUNGU_NM, sex) %>%
++         summarise(pop = sum(val))
+`summarise()` has grouped output by 'SIGUNGU_NM'. You can override using the
+`.groups` argument.
+> 
+> names(sgg_pop) <- c("name", "sex", "pop")
+> names(ohca_num) <- c("name", "sex", "ohca")
+> 
+> sgg_ohca <- left_join(sgg_pop, ohca_num, by=c("name", "sex"))
+> sgg_ohca <- sgg_ohca %>%
++         mutate(ohca = case_when(is.na(ohca) ~ 0, TRUE ~ ohca))
+> sgg_ohca <- sgg_ohca %>%
++         mutate(ohca_ratio = ohca/pop)
+> sgg_ohca <- sgg_ohca %>%
++         mutate(ohca_ratio_100k = ohca_ratio * 100000)
+> 
+> # 시군구별, 연령별, 성별, 심정시 발생 확률 - Export output
+> write.csv(sgg_ohca, file.path("tab", "ohca_likelihood.csv"))
+Error in file(file, ifelse(append, "a", "w")) : 
+  cannot open the connection
+Calls: write.csv -> eval.parent -> eval -> eval -> <Anonymous> -> file
+In addition: Warning message:
+In file(file, ifelse(append, "a", "w")) :
+  cannot open file 'tab/ohca_likelihood.csv': No such file or directory
+Execution halted
