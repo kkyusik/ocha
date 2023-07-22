@@ -7,15 +7,15 @@ all: data
 data: demand.Rout emsbed.Rout firestation.Rout
 
 # demand estimation from ohca occurrence estimation
-demand.Rout: R/demand.R
-	R CMD BATCH R/demand.R
+demand.Rout: script/demand.R
+	R CMD BATCH script/demand.R
 
 # ems beds from hira hospital information
-emsbed.Rout: R/emsbed.R demand.Rout
-	R CMD BATCH R/emsbed.R		
+emsbed.Rout: script/emsbed.R demand.Rout
+	R CMD BATCH script/emsbed.R		
 	
-firestation.Rout: R/firestation.R
-	R CMD BATCH R/firestation.R	
+firestation.Rout: script/firestation.R
+	R CMD BATCH script/firestation.R	
 	
 #clean_all:
 #	find . | egrep ".*((\.(RData|Rout|Rhistory))|~)$$" | xargs rm
