@@ -2,9 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
 data
 output
 fig
 tab
 report
-.pdf
+*.pdf
