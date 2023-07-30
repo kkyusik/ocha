@@ -1,0 +1,109 @@
+
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+- Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+[Previously saved workspace restored]
+
+> # explore
+> 
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.2     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(tmap)
+The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+which was just loaded, will retire in October 2023.
+Please refer to R-spatial evolution reports for details, especially
+https://r-spatial.org/r/2023/05/15/evolution4.html.
+It may be desirable to make the sf package available;
+package maintainers should consider adding sf to Suggests:.
+The sp package is now running under evolution status 2
+     (status 2 uses the sf package in place of rgdal)
+> library(sf)
+Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
+> 
+> 
+> demand <- read_sf(file.path("data/tidy", "demand_grid.gpkg"))
+> demand.pt <- st_centroid(demand)
+Warning message:
+st_centroid assumes attributes are constant over geometries 
+> fire <- read_sf("data/tidy/poi_fire.gpkg")
+> ems <- st_read("data/tidy/poi_ems_beds.gpkg")
+Reading layer `poi_ems_beds' from data source 
+  `/home/kyusik/Projects/R23-03-ohca_korea/data/tidy/poi_ems_beds.gpkg' 
+  using driver `GPKG'
+Simple feature collection with 50 features and 4 fields
+Geometry type: POINT
+Dimension:     XY
+Bounding box:  xmin: 955472.8 ymin: 1789673 xmax: 1025346 ymax: 1888783
+Projected CRS: Korea 2000 / Unified CS
+> road <- read_sf("data/tidy/road_network.gpkg")
+> area <- read_sf("data/tidy/study_area_buffer_sgg.gpkg")
+> studyarea <- read_sf("./data/tidy/study_area_sgg.gpkg")
+> 
+> m1 <- tm_shape(area) + tm_borders(col = "red") +
++         tm_shape(demand) + tm_fill(col = "demand") +
++         tm_credits("Data: total demand", position = c("left", "bottom"))
+> # tmap_save(m, "output/explore/grid_total_demand.png", dpi=300)
+> 
+> m2 <- tm_shape(area) + tm_borders(col = "red") +
++         tm_shape(demand) + tm_fill(col = "demand_ohca") +
++         tm_credits("Data: ohca demand", position = c("left", "bottom"))
+> # tmap_save(m, "output/explore/grid_ohca_demand.png", dpi=300)
+> 
+> m <- tmap_arrange(m1, m2, ncol=2)
+> tmap_save(m, "output/explore/grid_demand.png", dpi=300, height=5, width=9)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/grid_demand.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> 
+> qtm(fire)
+> 
+> m <- tm_shape(area) + tm_borders(col = "red") +
++         tm_shape(studyarea) + tm_borders(col="gray30")+
++         tm_shape(fire) + tm_dots() +
++         tm_credits("Data: firestations", position = c("left", "bottom"))
+> m
+> tmap_save(m,"output/explore/firestation.png", dpi=300)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/firestation.png
+Resolution: 2155.654 by 2045.782 pixels
+Size: 7.185515 by 6.819275 inches (300 dpi)
+> 
+> m <- tm_shape(area) + tm_borders(col = "red") +
++         tm_shape(studyarea) + tm_borders(col="gray30")+
++         tm_shape(ems) + tm_bubbles(size="beds") +
++         tm_credits("Data: ems beds", position = c("left", "bottom"))
+> m
+> tmap_save(m,"output/explore/ems.png", dpi=300)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/ems.png
+Resolution: 2155.654 by 2045.782 pixels
+Size: 7.185515 by 6.819275 inches (300 dpi)
+> hist(ems$beds)
+> 
+> proc.time()
+   user  system elapsed 
+ 23.708   1.604  24.514 

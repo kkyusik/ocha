@@ -17,8 +17,9 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-- Project '~/Projects/2023-03-ohca_korea' loaded. [renv 1.0.0]
-- The project is out-of-sync -- use `renv::status()` for details.
+- Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+[Previously saved workspace restored]
+
 > #' @title data_ems_bed
 > #' @initialized 7-21-23
 > #' @description
@@ -47,7 +48,7 @@ package maintainers should consider adding sf to Suggests:.
 The sp package is now running under evolution status 2
      (status 2 uses the sf package in place of rgdal)
 Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
-here() starts at /home/kyusik/Projects/2023-03-ohca_korea
+here() starts at /home/kyusik/Projects/R23-03-ohca_korea
 > 
 > 
 > poi_xy <- read.xlsx(file.path("data/raw/hira", "hospital_service_infomation_2021.12.xlsx")) %>% as_tibble # 1.병원정보서비스
@@ -92,7 +93,7 @@ here() starts at /home/kyusik/Projects/2023-03-ohca_korea
 > 
 > # Get poi within study area
 > studyarea <- read_sf(file.path("data/tidy", "study_area_sgg.gpkg"))
-> studyarea_buffer <- read_sf(file.path("data/tidy", "study_area_buffer.gpkg"))
+> studyarea_buffer <- read_sf(file.path("data/tidy", "study_area_buffer_sgg.gpkg"))
 > poi <- st_transform(poi, st_crs(studyarea))
 > 
 > idx <- st_intersects(poi, studyarea_buffer, sparse = TRUE)
@@ -100,12 +101,15 @@ here() starts at /home/kyusik/Projects/2023-03-ohca_korea
 > 
 > # qtm(studyarea_buffer) + qtm(studyarea) + qtm(poi)
 > 
-> # export firestations and safecenters
-> write_sf(poi, file.path("data/tidy", "poi_emd_beds.gpkg"))
+> st_write(poi, dsn = "data/tidy/poi_ems_beds.gpkg", driver = "gpkg", delete_layer = TRUE)
+Deleting layer `poi_ems_beds' using driver `gpkg'
+Writing layer `poi_ems_beds' to data source 
+  `data/tidy/poi_ems_beds.gpkg' using driver `gpkg'
+Writing 50 features with 4 fields and geometry type Point.
 > 
 > 
 > # hist(poi$beds)
 > 
 > proc.time()
    user  system elapsed 
- 20.098   1.754  21.203 
+ 31.649   2.283  33.206 

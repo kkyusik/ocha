@@ -1,0 +1,250 @@
+
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+- Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+[Previously saved workspace restored]
+
+> #' @title make road network data
+> #' @initialized 7-28-23
+> #' @description
+> #'      make road network with level 6 information
+> #' @update
+> #' 
+> 
+> 
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.2     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(sf)
+Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
+> library(tmap)
+The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+which was just loaded, will retire in October 2023.
+Please refer to R-spatial evolution reports for details, especially
+https://r-spatial.org/r/2023/05/15/evolution4.html.
+It may be desirable to make the sf package available;
+package maintainers should consider adding sf to Suggests:.
+The sp package is now running under evolution status 2
+     (status 2 uses the sf package in place of rgdal)
+> library(data.table)
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+> library(here)
+here() starts at /home/kyusik/Projects/R23-03-ohca_korea
+> 
+> level6_speed <- fread("data/raw/roadnetwork/2021년_충북,충남,세종,대전_평균속도_상세도로망Level6네트워크기준.csv")
+> head(level6_speed)
+   lev6_link_id road_rank road_length        road_name sido_code sigungu_code
+1:  56413274001       101       0.188     경부고속도로     25000        25010
+2:  56413274401       101       0.420     경부고속도로     25000        25010
+3:  56413274801       101       0.420     경부고속도로     25000        25010
+4:  56413273601       101       0.440     경부고속도로     25000        25010
+5:  55480752201       101       0.531 통영대전고속도로     25000        25010
+6:  55480751801       101       0.660 통영대전고속도로     25000        25010
+   emd_code  sido_name sigungu_name emd_name week_type timeslot velocity_AVRG
+1:  2501073 대전광역시         동구   대청동   weekday      all         95.92
+2:  2501073 대전광역시         동구   대청동   weekday      all         98.04
+3:  2501073 대전광역시         동구   대청동   weekday      all         99.45
+4:  2501073 대전광역시         동구   대청동   weekday      all        101.08
+5:  2501073 대전광역시         동구   대청동   weekday      all         90.23
+6:  2501073 대전광역시         동구   대청동   weekday      all         94.86
+> 
+> unique(level6_speed$timeslot)
+ [1] "all" "0"   "1"   "10"  "11"  "12"  "13"  "14"  "15"  "16"  "17"  "18" 
+[13] "19"  "2"   "20"  "21"  "22"  "23"  "3"   "4"   "5"   "6"   "7"   "8"  
+[25] "9"  
+> 
+> speed <- level6_speed %>%
++         filter(timeslot == "all") %>%
++         select(-week_type, -timeslot)
+> 
+> # load all roads and make it one file
+> file_names <- c("chungbuk_level6_2021/chungbuk_level6_link_2021.shp",
++                 "chungnam_level6_2021/chungnam_level6_link_2021.shp",
++                 "sejong_level6_2021/sejong_level6_link_2021.shp",
++                 "daejeon_level6_2021/daejeon_level6_link_2021.shp")
+> 
+> road <- data.frame()
+> for (file_name in file_names){
++         temp <- read_sf(here("data/raw/roadnetwork", file_name))
++         road <- rbind.data.frame(road, temp)
++ }
+> 
+> tmap_save(tm = qtm(road), "output/explore/road_level6.png", dpi=300)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/road_level6.png
+Resolution: 2651.143 by 1663.433 pixels
+Size: 8.837144 by 5.544778 inches (300 dpi)
+> 
+> 
+> # link_id matching
+> # shapefile: 9 digits
+> # up_v_link: upward virtual link; dw_v_link: downward virtual link
+> # speed: 11 digits
+> speed_up <- speed %>% 
++         mutate(up_v_link = as.double(lev6_link_id), velocity_up = velocity_AVRG) %>%
++         select(up_v_link, velocity_up)
+> speed_dw <- speed %>% 
++         mutate(dw_v_link = as.double(lev6_link_id), velocity_dw = velocity_AVRG) %>%
++         select(dw_v_link, velocity_dw)
+> 
+> temp <- road %>% left_join(speed_up, by="up_v_link")
+> temp <- temp %>% left_join(speed_dw, by="dw_v_link")
+> 
+> temp <- temp %>%
++         mutate(velocity = case_when(
++                 !is.na(velocity_up) & !is.na(velocity_dw) ~ (velocity_up+velocity_dw)/2,
++                 !is.na(velocity_up) & is.na(velocity_dw) ~ velocity_up,
++                 is.na(velocity_up) & !is.na(velocity_dw) ~ velocity_dw,
++                 TRUE ~ 0
++         ))
+> 
+> # impute velocity based on road_rank and Ahn et al (2019).
+> # road_rank 101, 102: 100km
+> # road rank 103-106: 80 km
+> # road_rank 107: 60 km
+> # road_rank 108: 40 km
+> 
+> temp <- temp %>%
++         mutate(speed_imputed = case_when(
++                 max_speed > 0 & velocity == 0 ~ max_speed,
++                 max_speed == 0 & velocity == 0 & road_rank %in% c(101, 102) ~ 100,
++                 max_speed == 0 & velocity == 0 & road_rank %in% 103:106 ~ 80,
++                 max_speed == 0 & velocity == 0 & road_rank == 107 ~ 60,
++                 max_speed == 0 & velocity == 0 & road_rank == 108 ~ 40,
++                 TRUE ~ 0
++         ))
+> 
+> temp %>% filter(velocity == 0)
+Simple feature collection with 10824 features and 38 fields
+Geometry type: LINESTRING
+Dimension:     XY
+Bounding box:  xmin: 878163.5 ymin: 1777274 xmax: 1098513 ymax: 1912479
+Projected CRS: ITRF_2000_UTM_K
+# A tibble: 10,824 × 39
+     link_id up_f_node up_t_node dw_f_node dw_t_node max_speed road_name road_no
+ *     <dbl>     <dbl>     <dbl>     <dbl>     <dbl>     <dbl> <chr>     <chr>  
+ 1 555615410    283703    283704    283704    283703         0 "\xc0\xe… 0      
+ 2 555615828    283564    283706    283706    283564         0 "\xc3\xb… 0      
+ 3 555616020    283547    640703    640703    283547        60 "\xb1\xd… 0      
+ 4 555700584    283781    283782    283782    283781         0  <NA>     0      
+ 5 555701814    609555    609556    609556    609555         0 "\xc0\xe… 0      
+ 6 555702548    640766    640767    640767    640766         0  <NA>     0      
+ 7 555702549    640790    640767    640767    640790         0 "\xc0\xc… 0      
+ 8 555800150    283934    283936    283936    283934         0  <NA>     0      
+ 9 555800157    283935    283936    283936    283935         0  <NA>     0      
+10 555810224    283962    283964         0         0         0 "\xb0\xe… 1      
+# ℹ 10,814 more rows
+# ℹ 31 more variables: road_rank <dbl>, link_type <dbl>, pavement <dbl>,
+#   road_type <dbl>, facil_name <chr>, tg_name <chr>, up_lanes <dbl>,
+#   dw_lanes <dbl>, lanes <dbl>, oneway <dbl>, length <dbl>, up_its_id <dbl>,
+#   dw_its_id <dbl>, sido_id <dbl>, sigungu_id <dbl>, emd_id <dbl>,
+#   up_v_link <dbl>, dw_v_link <dbl>, m_date <dbl>, rc_id <chr>, rc_name <chr>,
+#   rc_hist <chr>, rc_date <dbl>, rc_length <dbl>, old_link_i <dbl>, …
+> 
+> temp %>% select(velocity, speed_imputed)
+Simple feature collection with 105178 features and 2 fields
+Geometry type: LINESTRING
+Dimension:     XY
+Bounding box:  xmin: 877767.5 ymin: 1776339 xmax: 1101196 ymax: 1916527
+Projected CRS: ITRF_2000_UTM_K
+# A tibble: 105,178 × 3
+   velocity speed_imputed                                               geometry
+      <dbl>         <dbl>                                       <LINESTRING [m]>
+ 1     35.8             0 (999880.3 1807363, 999866.5 1807431, 999863 1807440, …
+ 2     34.2             0 (999880.3 1807363, 999880.2 1807357, 999878.6 1807352…
+ 3     44.2             0 (1000007 1808498, 999987.2 1808497, 999864.9 1808477,…
+ 4     56.4             0 (999350.7 1808559, 999376.2 1808532, 999392.6 1808518…
+ 5     28.1             0 (1011060 1795551, 1011058 1795552, 1011057 1795553, 1…
+ 6     25.0             0                     (1009693 1792765, 1009691 1792780)
+ 7     36.0             0                     (1009691 1792780, 1009666 1792957)
+ 8      0              60                     (1009666 1792957, 1009663 1792974)
+ 9      0              60 (1011002 1795623, 1010994 1795630, 1010965 1795645, 1…
+10     64.2             0 (1012347 1791941, 1012340 1791938, 1012231 1791901, 1…
+# ℹ 105,168 more rows
+> 
+> qtm(temp %>% filter(velocity > 0), lines.col = "velocity")
+> 
+> # calculate time using velocity and speed_imputed
+> # length : km
+> # here, time will be minutes
+> # length * 60 / speed * weight
+> # here, if velocity exists, weight is 1.5, otherwise, 0.9
+> 
+> temp <- temp %>%
++         mutate(travel_time = case_when(
++                 velocity > 0 ~ (length*60) / (velocity*1.5),
++                 speed_imputed > 0 ~ (length*60) / (speed_imputed*0.9)
++         ))
+> 
+> # qtm(temp, lines.col = "travel_time")
+> 
+> road <- temp
+> 
+> # intersect with study area
+> area <- read_sf("data/tidy/study_area_buffer_sgg.gpkg")
+> road <- st_transform(road, st_crs(area))
+> road_area <- st_intersection(road, area)
+Warning message:
+attribute variables are assumed to be spatially constant throughout all geometries 
+> 
+> m <- tm_shape(road_area) +
++         tm_lines(col = "travel_time", breaks = c(0, 1, 4, 6)) +
++         tm_layout(title = "Travel time (min)")
+> 
+> tmap_save(m, filename = "output/explore/travel_time_level6.png")
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/travel_time_level6.png
+Resolution: 2150.838 by 2050.364 pixels
+Size: 7.169458 by 6.834547 inches (300 dpi)
+> 
+> 
+> # export road network in study area
+> result <- road_area %>%
++         select(link_id, road_rank, travel_time)
+> 
+> st_write(result, "data/tidy/road_network.gpkg", delete_layer = TRUE)
+Deleting layer `road_network' using driver `GPKG'
+Writing layer `road_network' to data source 
+  `data/tidy/road_network.gpkg' using driver `GPKG'
+Writing 64129 features with 3 fields and geometry type Unknown (any).
+> 
+> proc.time()
+   user  system elapsed 
+122.338   1.875 120.556 

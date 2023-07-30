@@ -1,0 +1,356 @@
+
+R version 4.3.1 (2023-06-16) -- "Beagle Scouts"
+Copyright (C) 2023 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+- Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+[Previously saved workspace restored]
+
+> #' @title accessibility calculation
+> #' @initialized 7-28-23
+> #' @description
+> #'      calculate accessibility
+> #' @update
+> #' 
+> 
+> library(tidyverse)
+── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+✔ dplyr     1.1.2     ✔ readr     2.1.4
+✔ forcats   1.0.0     ✔ stringr   1.5.0
+✔ ggplot2   3.4.2     ✔ tibble    3.2.1
+✔ lubridate 1.9.2     ✔ tidyr     1.3.0
+✔ purrr     1.0.1     
+── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+✖ dplyr::filter() masks stats::filter()
+✖ dplyr::lag()    masks stats::lag()
+ℹ Use the conflicted package (<http://conflicted.r-lib.org/>) to force all conflicts to become errors
+> library(sf)
+Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
+> library(tmap)
+The legacy packages maptools, rgdal, and rgeos, underpinning the sp package,
+which was just loaded, will retire in October 2023.
+Please refer to R-spatial evolution reports for details, especially
+https://r-spatial.org/r/2023/05/15/evolution4.html.
+It may be desirable to make the sf package available;
+package maintainers should consider adding sf to Suggests:.
+The sp package is now running under evolution status 2
+     (status 2 uses the sf package in place of rgdal)
+> library(data.table)
+
+Attaching package: ‘data.table’
+
+The following objects are masked from ‘package:lubridate’:
+
+    hour, isoweek, mday, minute, month, quarter, second, wday, week,
+    yday, year
+
+The following objects are masked from ‘package:dplyr’:
+
+    between, first, last
+
+The following object is masked from ‘package:purrr’:
+
+    transpose
+
+> 
+> area <- st_read("data/tidy/study_area_sgg.gpkg")
+Reading layer `study_area_sgg' from data source 
+  `/home/kyusik/Projects/R23-03-ohca_korea/data/tidy/study_area_sgg.gpkg' 
+  using driver `GPKG'
+Simple feature collection with 4 features and 3 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 979944.5 ymin: 1823411 xmax: 1024129 ymax: 1864684
+Projected CRS: Korea 2000 / Unified CS
+> road <- st_read("data/tidy/road_network.gpkg")
+Reading layer `road_network' from data source 
+  `/home/kyusik/Projects/R23-03-ohca_korea/data/tidy/road_network.gpkg' 
+  using driver `GPKG'
+Simple feature collection with 64129 features and 3 fields
+Geometry type: MULTILINESTRING
+Dimension:     XY
+Bounding box:  xmin: 941617.7 ymin: 1776339 xmax: 1077455 ymax: 1905831
+Projected CRS: Korea 2000 / Unified CS
+> 
+> area_buffer <- read_sf("data/tidy/study_area_buffer_sgg.gpkg")
+> area_buffer <- area_buffer %>%
++         mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
+> area_buffer <- area_buffer %>% filter(!sido_cd %in% c("31", "37"))
+> 
+> fire <- st_read("data/tidy/poi_fire.gpkg")
+Reading layer `poi_fire' from data source 
+  `/home/kyusik/Projects/R23-03-ohca_korea/data/tidy/poi_fire.gpkg' 
+  using driver `GPKG'
+Simple feature collection with 116 features and 5 fields
+Geometry type: POINT
+Dimension:     XY
+Bounding box:  xmin: 947423.6 ymin: 1789217 xmax: 1028986 ymax: 1901495
+Projected CRS: Korea 2000 / Unified CS
+> ems <- st_read("data/tidy/poi_ems_beds.gpkg")
+Reading layer `poi_ems_beds' from data source 
+  `/home/kyusik/Projects/R23-03-ohca_korea/data/tidy/poi_ems_beds.gpkg' 
+  using driver `GPKG'
+Simple feature collection with 50 features and 4 fields
+Geometry type: POINT
+Dimension:     XY
+Bounding box:  xmin: 955472.8 ymin: 1789673 xmax: 1025346 ymax: 1888783
+Projected CRS: Korea 2000 / Unified CS
+> ems_bed <- ems %>% as_tibble %>% select(id, beds)
+> 
+> demand <- read_sf(file.path("data/tidy", "demand_grid.gpkg"))
+> 
+> # select demand within area_buffer
+> idx <- st_intersects(demand, area_buffer)
+> demand_intersected <- demand[which(lengths(idx) > 0), ]
+> 
+> demand <- demand_intersected
+> rm(demand_intersected)
+> 
+> 
+> # filtering cheongju
+> study_area <- st_read("data/tidy/study_area_sgg.gpkg")
+Reading layer `study_area_sgg' from data source 
+  `/home/kyusik/Projects/R23-03-ohca_korea/data/tidy/study_area_sgg.gpkg' 
+  using driver `GPKG'
+Simple feature collection with 4 features and 3 fields
+Geometry type: MULTIPOLYGON
+Dimension:     XY
+Bounding box:  xmin: 979944.5 ymin: 1823411 xmax: 1024129 ymax: 1864684
+Projected CRS: Korea 2000 / Unified CS
+> idx <- st_intersects(demand, study_area)
+> demand_intersected <- demand[which(lengths(idx) > 0), ]
+> 
+> grid <- demand_intersected
+> rm(demand_intersected)
+> 
+> 
+> od_fire <- fread("data/tidy/odcost_grid_fire.csv")
+> od_ems <- fread("data/tidy/odcost_grid_ems.csv")
+> 
+> # average time
+> 
+> cost_fire_avg <- od_fire[, .(time_avg_fire = mean(time)), by=origin]
+> 
+> demand <- demand %>% left_join(cost_fire_avg, by=c("gid"="origin"))
+> 
+> # qtm(demand, fill="time_avg") +
+> # demand %>% filter(is.infinite(time_avg)) %>%
+> #         qtm(fill = "black") +
+> #         tm_shape(area) + tm_borders(col="black") +
+> #         tm_shape(road) + tm_lines() +
+> #         tm_shape(area_buffer) + tm_borders(col="black")
+> 
+> # fill missing values
+> demand <- demand %>%
++         mutate(time_avg_fire = case_when(is.infinite(time_avg_fire) ~ NA, TRUE ~ time_avg_fire)) %>%
++         fill(time_avg_fire, .direction="updown")
+> 
+> cost_ems_avg <- od_ems[, .(time_avg_ems = mean(time)), by=origin]
+> demand <- demand %>% left_join(cost_ems_avg, by=c("gid"="origin"))
+> demand <- demand %>%
++         mutate(time_avg_ems = case_when(is.infinite(time_avg_ems) ~ NA, TRUE ~ time_avg_ems)) %>%
++         fill(time_avg_ems, .direction="updown")
+> 
+> 
+> m1 <- tm_shape(demand) + tm_fill(col="time_avg_fire", palette = "-viridis") +
++         tm_shape(area) + tm_borders(col = "gray40") +
++         tm_credits("Average travel time to firestation", position = c("left", "bottom"))
+> m2 <- tm_shape(demand) + tm_fill(col="time_avg_ems", palette = "-viridis") +
++         tm_shape(area) + tm_borders(col = "gray40") +
++         tm_credits("Average travel time to hospital", position = c("left", "bottom"))
+> m <- tmap_arrange(m1, m2, ncol=2)
+> tmap_save(m, "output/explore/average_travel_time.png", dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/average_travel_time.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> 
+> # filtering origin based on gid of demand
+> gid_list <- unique(demand$gid)
+> od_fire <- od_fire %>% filter(origin %in% gid_list)
+> od_ems <- od_ems %>% filter(origin %in% gid_list)
+> 
+> # firestation time decay function
+> 
+> fire_decay <- function(d, cutoff=4){
++         if (d <= cutoff){
++                 w <- 1
++         } else {
++                 w <- -0.09 * d + 1.36
++         }
++         return(w)
++ }
+> 
+> times_fire <- seq(0, 15, 0.1)
+> decay_list_fire <- c()
+> for (d in times_fire) {
++         decay_list_fire <- c(decay_list_fire, fire_decay(d, 4))
++         
++ }
+> plot(x = times_fire, y = decay_list_fire, type = "l")
+> 
+> # ems decay function
+> ems_decay <- function(d, beta=200){
++         w <- exp(-1 * d^2 / beta)
++         return(w)
++ }
+> 
+> times_ems <- seq(0, 30, 0.1)
+> decay_list_ems <- c()
+> for (d in times_ems){
++         decay_list_ems <- c(decay_list_ems, ems_decay(d, 200))
++ }
+> 
+> plot(x = times_ems, y = decay_list_ems, type = "l")
+> 
+> # export plot
+> png("output/fig/decay_functions.png", width=9, height=4.5, units='in', res=300)
+> par(mfrow=c(1, 2), mar=c(5,5,4,2))
+> plot(x = times_fire, y = decay_list_fire, type="l", xlab="Travel time (min)", ylab="Weight", main="(a) Fire stations")
+> # axis(1, at=seq(0, 15, 1))
+> plot(x = times_ems, y = decay_list_ems, type="l", xlab="Travel time (min)", ylab="Weight", main="(b) EMS Hospitals")
+> 
+> dev.off()
+pdf 
+  2 
+> 
+> # access to firestation
+> 
+> od_fire_w <- od_fire %>% 
++         filter(time <= 15) %>%
++         mutate(weight = sapply(time, fire_decay))
+> 
+> temp_demand <- demand %>% as_tibble %>% select(gid, demand, demand_ohca)
+> ## calculate supply ratio
+> temp <- od_fire_w %>% left_join(temp_demand, by=c("origin"="gid"))
+> 
+> temp <- temp %>%
++         mutate(w_demand = demand * weight, 
++                w_demand_ohca = demand_ohca * weight) %>%
++         group_by(destin) %>%
++         summarise(w_demand = sum(w_demand),
++                   w_demand_ohca = sum(w_demand_ohca))
+> 
+> temp$supply <- 1
+> 
+> temp <- temp %>%
++         mutate(s_demand = supply/w_demand,
++                s_demand_ohca = supply/w_demand_ohca)
+> rj_fire <- temp %>% select(destin, s_demand, s_demand_ohca)
+> 
+> ## calulate Ai
+> 
+> temp <- od_fire_w %>%
++         left_join(rj_fire, by="destin")
+> ai_fire <- temp %>%
++         mutate(w_demand = weight * s_demand,
++                w_demand_ohca = weight * s_demand_ohca) %>%
++         group_by(origin) %>%
++         summarise(fire_general = sum(w_demand),
++                   fire_ohca = sum(w_demand_ohca))
+> 
+> # access to ems
+> od_ems_w <- od_ems %>% 
++         filter(time <= 30) %>%
++         mutate(weight = sapply(time, ems_decay))
+> 
+> temp_demand <- demand %>% as_tibble %>% select(gid, demand, demand_ohca)
+> ## calculate supply ratio
+> temp <- od_ems_w %>% left_join(temp_demand, by=c("origin"="gid"))
+> 
+> temp <- temp %>%
++         mutate(w_demand = demand * weight, 
++                w_demand_ohca = demand_ohca * weight) %>%
++         group_by(destin) %>%
++         summarise(w_demand = sum(w_demand),
++                   w_demand_ohca = sum(w_demand_ohca))
+> 
+> temp <- temp %>% left_join(ems_bed, by=c("destin"="id"))
+> temp$supply <- temp$beds
+> temp <- temp %>%
++         mutate(s_demand = supply/w_demand,
++                s_demand_ohca = supply/w_demand_ohca)
+> rj_ems <- temp %>% select(destin, s_demand, s_demand_ohca)
+> 
+> ## calulate Ai
+> 
+> temp <- od_ems_w %>%
++         left_join(rj_ems, by="destin")
+> ai_ems <- temp %>%
++         mutate(w_demand = weight * s_demand,
++                w_demand_ohca = weight * s_demand_ohca) %>%
++         group_by(origin) %>%
++         summarise(ems_general = sum(w_demand),
++                   ems_ohca = sum(w_demand_ohca))
+> 
+> 
+> # join access to grid
+> grid <- grid %>%
++         left_join(ai_fire, by=c("gid"="origin")) %>%
++         left_join(ai_ems, by=c("gid"="origin"))
+> 
+> grid <- grid %>%
++         mutate(fire_general = case_when(is.na(fire_general) ~ 0, TRUE ~ fire_general),
++                fire_ohca = case_when(is.na(fire_ohca) ~ 0, TRUE ~ fire_ohca))
+> 
+> # compute relative 2SFCA
+> spar <- grid %>%
++         mutate(fire_general_spar = fire_general / mean(fire_general, na.rm = T),
++                fire_ohca_spar = fire_ohca / mean(fire_ohca, na.rm=T),
++                ems_general_spar = ems_general / mean(ems_general, na.rm = T),
++                ems_ohca_spar = ems_ohca / mean(ems_ohca, na.rm=T))
+> 
+> # map SPAR of fire
+> 
+> palette <- tmaptools::get_brewer_pal("-RdBu", n = 4)
+> bound <- st_bbox(study_area)
+> m_general <- tm_shape(spar, bbox = bound) +
++         tm_fill(col = "fire_general_spar", palette=palette, breaks = c(0, 0.5, 1, 1.5, Inf), title="SPAR (General)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("SPAR to fire stations of general population", position = c("left", "bottom"))
+> 
+> m_ohca <- tm_shape(spar, bbox = bound) +
++         tm_fill(col = "fire_ohca_spar", palette=palette, breaks = c(0, 0.5, 1, 1.5, Inf), title="SPAR (OHCA)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("SPAR to fire stations of estimated OHCA population", position = c("left", "bottom"))
+> 
+> m <- tmap_arrange(m_general, m_ohca, ncol=2)
+> tmap_save(m, "output/fig/spar_fire.png", dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/spar_fire.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> # map SPAR of ems
+> m_general <- tm_shape(spar, bbox = bound) +
++         tm_fill(col = "ems_general_spar", palette=palette, breaks = c(0, 0.5, 1, 1.5, Inf), title="SPAR (General)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("SPAR to EMS hospitals of general population", position = c("left", "bottom"))
+> 
+> m_ohca <- tm_shape(spar, bbox = bound) +
++         tm_fill(col = "ems_ohca_spar", palette=palette, breaks = c(0, 0.5, 1, 1.5, Inf), title="SPAR (OHCA)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("SPAR to EMS hospitals of estimated OHCA population", position = c("left", "bottom"))
+> 
+> m <- tmap_arrange(m_general, m_ohca, ncol=2)
+> tmap_save(m, "output/fig/spar_ems.png", dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/spar_ems.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> proc.time()
+   user  system elapsed 
+ 25.854   1.964  25.314 

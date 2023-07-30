@@ -51,7 +51,7 @@ poi <- st_as_sf(poi, coords = c("x좌표", "y좌표"), crs=4326)
 
 # Get poi within study area
 studyarea <- read_sf(file.path("data/tidy", "study_area_sgg.gpkg"))
-studyarea_buffer <- read_sf(file.path("data/tidy", "study_area_buffer.gpkg"))
+studyarea_buffer <- read_sf(file.path("data/tidy", "study_area_buffer_sgg.gpkg"))
 poi <- st_transform(poi, st_crs(studyarea))
 
 idx <- st_intersects(poi, studyarea_buffer, sparse = TRUE)
@@ -59,8 +59,7 @@ poi <- poi[which(lengths(idx) > 0), ]
 
 # qtm(studyarea_buffer) + qtm(studyarea) + qtm(poi)
 
-# export firestations and safecenters
-write_sf(poi, file.path("data/tidy", "poi_emd_beds.gpkg"))
+st_write(poi, dsn = "data/tidy/poi_ems_beds.gpkg", driver = "gpkg", delete_layer = TRUE)
 
 
 # hist(poi$beds)

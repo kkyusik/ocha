@@ -32,7 +32,7 @@ cardiac <- cardiac %>%
 census <- read_sf(file.path("data/raw", "bnd_sigungu_00_2021_2021/bnd_sigungu_00_2021_2021_2Q.shp"))
 cheongju <- census %>% filter(grepl("청주", SIGUNGU_NM))
 cheongju_union <- st_union(cheongju)
-cheongju_buffer <- st_buffer(cheongju_union, dist=10000)
+cheongju_buffer <- st_buffer(cheongju_union, dist=20000)
 
 write_sf(cheongju, file.path("data/tidy", "study_area_sgg.gpkg"))
 write_sf(cheongju_buffer, file.path("data/tidy", "study_area_buffer.gpkg"))
@@ -42,11 +42,14 @@ idx <- st_intersects(census, cheongju_buffer)
 census_intersected <- census[which(lengths(idx) > 0), ]
 # qtm(census_intersected)
 
-remove <- c("상주시", "공주시", "서구", "음성군", "옥천군")
-census <- census_intersected %>% 
-        filter(!SIGUNGU_NM %in% remove)
+# remove <- c("상주시", "공주시", "서구", "음성군", "옥천군")
+# census <- census_intersected %>%
+#         filter(!SIGUNGU_NM %in% remove)
 # qtm(census, text = "SIGUNGU_NM")
 
+census <- census_intersected
+
+st_write(census, "data/tidy/study_area_buffer_sgg.gpkg", delete_layer = TRUE)
 # cardiac %>% filter(P_ADMINCODE %in% sgg_cd)
 
 selection <- census$SIGUNGU_NM
@@ -158,7 +161,7 @@ sgg_ohca <- sgg_ohca %>%
         mutate(ohca_ratio_100k = ohca_ratio * 100000)
 
 # 시군구별, 연령별, 성별, 심정시 발생 확률 - Export output
-write.csv(sgg_ohca, file.path("tab", "ohca_likelihood.csv"))
+write.csv(sgg_ohca, file.path("output/tab", "ohca_likelihood.csv"))
 
 # 이제 중요한 것은 ohca_ratio
 # ohca_ratio를 격자별 인구에 곱함.

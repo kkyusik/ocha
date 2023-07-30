@@ -18,6 +18,7 @@ proj_skeleton <- function(path = ".") {
         dir.create(path = file.path(path, "output"))
         dir.create(path = file.path(path, "output/fig"))
         dir.create(path = file.path(path, "output/tab"))
+        dir.create(path = file.path(path, "output/explore"))
         dir.create(path = file.path(path, "report"))
 }
 

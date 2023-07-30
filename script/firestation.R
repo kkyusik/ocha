@@ -109,14 +109,16 @@ qtm(poi)
 
 # Get poi within study area
 studyarea <- read_sf("./data/tidy/study_area_sgg.gpkg")
-studyarea_buffer <- read_sf("./data/tidy/study_area_buffer.gpkg")
+studyarea_buffer <- read_sf("./data/tidy/study_area_buffer_sgg.gpkg")
 poi <- st_transform(poi, st_crs(studyarea))
 
 idx <- st_intersects(poi, studyarea_buffer, sparse = TRUE)
 poi <- poi[which(lengths(idx) > 0), ]
 
+poi <- poi %>% mutate(id = paste0("fire_", 1:nrow(poi)))
+
 qtm(studyarea_buffer) + qtm(studyarea) + qtm(poi)
 
 # export firestations and safecenters
-write_sf(poi, "./data/tidy/poi_fire.gpkg", delete_layer = TRUE)
+st_write(poi, "./data/tidy/poi_fire.gpkg", delete_layer = TRUE)
 

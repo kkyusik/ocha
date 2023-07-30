@@ -17,8 +17,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-- Project '~/Projects/2023-03-ohca_korea' loaded. [renv 1.0.0]
-- The project is out-of-sync -- use `renv::status()` for details.
+- Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
 [Previously saved workspace restored]
 
 > #' @title data_firestation
@@ -49,7 +48,7 @@ package maintainers should consider adding sf to Suggests:.
 The sp package is now running under evolution status 2
      (status 2 uses the sf package in place of rgdal)
 Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
-here() starts at /home/kyusik/Projects/2023-03-ohca_korea
+here() starts at /home/kyusik/Projects/R23-03-ohca_korea
 
 Attaching package: ‘data.table’
 
@@ -436,18 +435,24 @@ The following object is masked from ‘package:purrr’:
 > 
 > # Get poi within study area
 > studyarea <- read_sf("./data/tidy/study_area_sgg.gpkg")
-> studyarea_buffer <- read_sf("./data/tidy/study_area_buffer.gpkg")
+> studyarea_buffer <- read_sf("./data/tidy/study_area_buffer_sgg.gpkg")
 > poi <- st_transform(poi, st_crs(studyarea))
 > 
 > idx <- st_intersects(poi, studyarea_buffer, sparse = TRUE)
 > poi <- poi[which(lengths(idx) > 0), ]
 > 
+> poi <- poi %>% mutate(id = paste0("fire_", 1:nrow(poi)))
+> 
 > qtm(studyarea_buffer) + qtm(studyarea) + qtm(poi)
 > 
 > # export firestations and safecenters
-> write_sf(poi, "./data/tidy/poi_fire.gpkg", delete_layer = TRUE)
+> st_write(poi, "./data/tidy/poi_fire.gpkg", delete_layer = TRUE)
+Deleting layer `poi_fire' using driver `GPKG'
+Writing layer `poi_fire' to data source 
+  `./data/tidy/poi_fire.gpkg' using driver `GPKG'
+Writing 116 features with 5 fields and geometry type Point.
 > 
 > 
 > proc.time()
    user  system elapsed 
-  7.880   1.229 160.822 
+ 22.132   1.574 174.120 

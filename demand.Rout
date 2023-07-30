@@ -17,8 +17,9 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 'help.start()' for an HTML browser interface to help.
 Type 'q()' to quit R.
 
-- Project '~/Projects/2023-03-ohca_korea' loaded. [renv 1.0.0]
-- The project is out-of-sync -- use `renv::status()` for details.
+- Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+[Previously saved workspace restored]
+
 > #' @title do_demand_estimation
 > #' @initialized 7-20-23
 > #' @description
@@ -47,7 +48,7 @@ package maintainers should consider adding sf to Suggests:.
 The sp package is now running under evolution status 2
      (status 2 uses the sf package in place of rgdal)
 Linking to GEOS 3.10.2, GDAL 3.4.1, PROJ 8.2.1; sf_use_s2() is TRUE
-here() starts at /home/kyusik/Projects/2023-03-ohca_korea
+here() starts at /home/kyusik/Projects/R23-03-ohca_korea
 
 Attaching package: ‘data.table’
 
@@ -89,7 +90,7 @@ The following object is masked from ‘package:purrr’:
 > census <- read_sf(file.path("data/raw", "bnd_sigungu_00_2021_2021/bnd_sigungu_00_2021_2021_2Q.shp"))
 > cheongju <- census %>% filter(grepl("청주", SIGUNGU_NM))
 > cheongju_union <- st_union(cheongju)
-> cheongju_buffer <- st_buffer(cheongju_union, dist=10000)
+> cheongju_buffer <- st_buffer(cheongju_union, dist=20000)
 > 
 > write_sf(cheongju, file.path("data/tidy", "study_area_sgg.gpkg"))
 > write_sf(cheongju_buffer, file.path("data/tidy", "study_area_buffer.gpkg"))
@@ -99,11 +100,17 @@ The following object is masked from ‘package:purrr’:
 > census_intersected <- census[which(lengths(idx) > 0), ]
 > # qtm(census_intersected)
 > 
-> remove <- c("상주시", "공주시", "서구", "음성군", "옥천군")
-> census <- census_intersected %>% 
-+         filter(!SIGUNGU_NM %in% remove)
+> # remove <- c("상주시", "공주시", "서구", "음성군", "옥천군")
+> # census <- census_intersected %>%
+> #         filter(!SIGUNGU_NM %in% remove)
 > # qtm(census, text = "SIGUNGU_NM")
 > 
+> census <- census_intersected
+> 
+> st_write(census, "data/tidy/study_area_buffer_sgg.gpkg", delete_layer = TRUE)
+Writing layer `study_area_buffer_sgg' to data source 
+  `data/tidy/study_area_buffer_sgg.gpkg' using driver `GPKG'
+Writing 25 features with 3 fields and geometry type Multi Polygon.
 > # cardiac %>% filter(P_ADMINCODE %in% sgg_cd)
 > 
 > selection <- census$SIGUNGU_NM
@@ -203,17 +210,17 @@ st_centroid assumes attributes are constant over geometries
 Simple feature collection with 6 features and 4 fields
 Geometry type: POINT
 Dimension:     XY
-Bounding box:  xmin: 981750 ymin: 1877750 xmax: 994750 ymax: 1890250
+Bounding box:  xmin: 971250 ymin: 1898750 xmax: 992750 ymax: 1903250
 Projected CRS: Korea 2000 / Unified CS
 # A tibble: 6 × 5
   gid                    geom BASE_DATE SIGUNGU_CD SIGUNGU_NM
   <chr>           <POINT [m]> <chr>     <chr>      <chr>     
-1 다바86b83b (986750 1883750) 20210630  33350      진천군    
-2 다바94b90a (994750 1890250) 20210630  33350      진천군    
-3 다바82b81a (982750 1881250) 20210630  33350      진천군    
-4 다바82a78b (982250 1878750) 20210630  33350      진천군    
-5 다바81b77b (981750 1877750) 20210630  33350      진천군    
-6 다바93a89a (993250 1889250) 20210630  33350      진천군    
+1 다사92b02b (992750 1902750) 20210630  31220      안성시    
+2 다사74a01a (974250 1901250) 20210630  31220      안성시    
+3 다바71a98b (971250 1898750) 20210630  31220      안성시    
+4 다사87a00b (987250 1900750) 20210630  31220      안성시    
+5 다사86b00a (986750 1900250) 20210630  31220      안성시    
+6 다사78a03a (978250 1903250) 20210630  31220      안성시    
 > grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_CD, SIGUNGU_NM)
 > 
 > temp <- temp %>% left_join(grid_pt_census, by="gid")
@@ -238,11 +245,66 @@ Projected CRS: Korea 2000 / Unified CS
 +         mutate(ohca_ratio_100k = ohca_ratio * 100000)
 > 
 > # 시군구별, 연령별, 성별, 심정시 발생 확률 - Export output
-> write.csv(sgg_ohca, file.path("tab", "ohca_likelihood.csv"))
-Error in file(file, ifelse(append, "a", "w")) : 
-  cannot open the connection
-Calls: write.csv -> eval.parent -> eval -> eval -> <Anonymous> -> file
-In addition: Warning message:
-In file(file, ifelse(append, "a", "w")) :
-  cannot open file 'tab/ohca_likelihood.csv': No such file or directory
-Execution halted
+> write.csv(sgg_ohca, file.path("output/tab", "ohca_likelihood.csv"))
+> 
+> # 이제 중요한 것은 ohca_ratio
+> # ohca_ratio를 격자별 인구에 곱함.
+> # temp <- temp %>% filter(gid %in% pop_gid)
+> temp <- temp %>% mutate(name = SIGUNGU_NM) %>% left_join(sgg_ohca, by=c("name", "sex"))
+> temp <- temp %>%
++         mutate(val_ohca = val * ohca_ratio)
+> 
+> temp %>% filter(is.na(val_ohca)) # there are NA of val_ohca
+# A tibble: 11,762 × 11
+   gid          val sex       SIGUNGU_CD SIGUNGU_NM name    pop  ohca ohca_ratio
+   <chr>      <dbl> <chr>     <chr>      <chr>      <chr> <dbl> <dbl>      <dbl>
+ 1 다바96a93b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 2 다바96a91a     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 3 다바95b91a     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 4 다바96b94a     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 5 다바95b90b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 6 다바97a94b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 7 다바98a94b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 8 다바97b94b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+ 9 라사12b05b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+10 라사13b04b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+# ℹ 11,752 more rows
+# ℹ 2 more variables: ohca_ratio_100k <dbl>, val_ohca <dbl>
+> temp <- temp %>%
++         mutate(val_ohca = case_when(is.na(val_ohca) ~ 0, TRUE ~ val_ohca))
+> 
+> # Calculate demand and demand_ohca
+> demand <- temp %>%
++         group_by(gid) %>%
++         summarise(demand = sum(val), 
++                   demand_ohca = sum(val_ohca))
+> 
+> demand <- demand %>% filter(demand > 0)
+> 
+> grid_area <- grid %>% filter(gid %in% unique(demand$gid))
+> demand_grid <- grid_area %>% left_join(demand, by="gid")
+> 
+> 
+> demand_map <- tm_shape(demand_grid) + tm_fill(col="demand") + tm_shape(census) + tm_borders()
+> 
+> ohca_map <- tm_shape(demand_grid) + tm_fill(col="demand_ohca") + tm_shape(census) + tm_borders()
+> 
+> 
+> demand_compare <- tmap_arrange(demand_map, ohca_map, ncol=2)
+> 
+> # grid within cheongju
+> idx <- st_intersects(demand_grid, cheongju)
+> demand_grid_chengju <- demand_grid[which(lengths(idx) > 0), ]
+> 
+> demand_map <- tm_shape(demand_grid_chengju) + tm_fill(col="demand") + tm_shape(census) + tm_borders()
+> ohca_map <- tm_shape(demand_grid_chengju) + tm_fill(col="demand_ohca") + tm_shape(census) + tm_borders()
+> demand_compare <- tmap_arrange(demand_map, ohca_map, ncol=2)
+> 
+> # hist(demand_grid_chengju$demand_ohca)
+> 
+> # Export demand grid
+> write_sf(demand_grid, file.path("data/tidy", "demand_grid.gpkg"))
+> 
+> proc.time()
+   user  system elapsed 
+138.381   6.315 137.948 
