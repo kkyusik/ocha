@@ -335,6 +335,27 @@ hist(grid$ems_general_mm)
 summary(grid$fire_general)
 summary(grid$ems_general)
 
+
+grid <- grid %>%
+        mutate(acc_general_mm = fire_general_mm + ems_general_mm,
+               acc_ohca_mm = fire_ohca_mm + ems_ohca_mm)
+
+m_general <- tm_shape(grid, bbox = bound) +
+        tm_fill(col = "acc_general_mm", title="Total access (General)", breaks=c(0, 0.25, 0.5, 0.75, 1, 1.5, Inf)) +
+        tm_shape(study_area) + tm_borders(col = "gray40") +
+        tm_credits("Access of general population", position = c("left", "bottom"))
+m_general
+m_ohca <- tm_shape(grid, bbox = bound) +
+        tm_fill(col = "acc_ohca_mm",  title="Total access (OHCA)", breaks=c(0, 0.25, 0.5, 0.75, 1, 1.5, Inf)) +
+        tm_shape(study_area) + tm_borders(col = "gray40") +
+        tm_credits("Access of estimated OHCA population", position = c("left", "bottom"))
+
+m <- tmap_arrange(m_general, m_ohca, ncol=2)
+m
+tmap_save(m, paste0("output/fig/access_total_mm.png"), dpi=300, width=9, height=5)
+
+
+
 # sum between raw values ----------------
 weight_fire <- 0.7
 weight_ems <- 1-weight_fire
@@ -368,7 +389,7 @@ ws <- knn2nb(wr)
 ws <- include.self(ws)
 listw <- nb2listw(ws, style="W")
 
-variables <- c("fire_general", "fire_ohca", "ems_general", "ems_ohca", "acc_general", "acc_ohca")
+variables <- c("fire_general", "fire_ohca", "ems_general", "ems_ohca", "acc_general_mm", "acc_ohca_mm")
 for (variable in variables){
         localg <- localG_perm(grid[[variable]], listw=listw, nsim=999)
         gi_variable <- paste0("gi_", variable)
@@ -387,7 +408,7 @@ for (variable in variables){
 
 
 
-gi_palette <- c('#b2182b', '#2166ac', '#f7f7f7')
+gi_palette <- c('#b2182b', '#2166ac', 'gray70')
 
 # fire stations
 m_general <- tm_shape(grid, bbox = bound) +
@@ -425,7 +446,42 @@ m_ohca <- tm_shape(grid, bbox = bound) +
         tm_credits("Gi* of total access of estimated OHCA population", position = c("left", "bottom"))
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
 m
-tmap_save(m, paste0("output/fig/gi_access_total_", weight_fire, "_", weight_ems, ".png"), dpi=300, width=9, height=5)
+tmap_save(m, paste0("output/fig/gi_access_total_mm.png"), dpi=300, width=9, height=5)
+
+
+# BILISA --------------------------------
+## https://gist.github.com/rafapereirabr/5348193abf779625f5e8c5090776a228
+
+library(rgeoda)
+
+W <- knn_weights(st_centroid(grid), k=8)
+
+qsa <- local_bimoran(W, grid[c("acc_general_mm", "acc_ohca_mm")])
+
+lisa_clusters <- lisa_clusters(qsa)
+lisa_labels <- lisa_labels(qsa)
+lisa_clusters[lisa_clusters==0] <- lisa_labels[1]
+lisa_clusters[lisa_clusters==1] <- lisa_labels[2]
+lisa_clusters[lisa_clusters==2] <- lisa_labels[3]
+lisa_clusters[lisa_clusters==3] <- lisa_labels[4]
+lisa_clusters[lisa_clusters==4] <- lisa_labels[5]
+lisa_clusters[lisa_clusters==5] <- lisa_labels[6]
+lisa_clusters[lisa_clusters==6] <- lisa_labels[7]
+
+grid$acc_bilisa <- lisa_clusters
+
+bilisa_palette <- c('#fb9a99', '#e31a1c', '#1f78b4', '#a6cee3', '#f7f7f7')
+m <- tm_shape(grid, bbox = bound) +
+        tm_fill(col="acc_bilisa", palette=bilisa_palette, title="Bivariate LISA clusters\nGeneral - OHCA") +
+        tm_shape(study_area) + tm_borders(col = "gray40")
+
+tmap_save(m, paste0("output/fig/bilisa_access_total_mm.png"), dpi=300, width=9, height=8.5)
+
+
+
+
+
+
 
 
 
