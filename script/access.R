@@ -16,9 +16,10 @@ area <- st_read("data/tidy/study_area_sgg.gpkg")
 road <- st_read("data/tidy/road_network.gpkg")
 
 area_buffer <- read_sf("data/tidy/study_area_buffer_sgg.gpkg")
-area_buffer <- area_buffer %>%
-        mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
-area_buffer <- area_buffer %>% filter(!sido_cd %in% c("31", "37"))
+# area_buffer <- area_buffer %>%
+#         mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
+# area_buffer <- area_buffer %>% filter(!sido_cd %in% c("31", "37"))
+st_write(area_buffer, "data/tidy/study_area_buffer_sgg.gpkg", delete_layer=TRUE)
 
 fire <- st_read("data/tidy/poi_fire.gpkg")
 ems <- st_read("data/tidy/poi_ems_beds.gpkg")
@@ -29,6 +30,8 @@ demand <- read_sf(file.path("data/tidy", "demand_grid.gpkg"))
 # select demand within area_buffer
 idx <- st_intersects(demand, area_buffer)
 demand_intersected <- demand[which(lengths(idx) > 0), ]
+
+st_write(demand_intersected, "data/tidy/demand_grid.gpkg", delete_layer = TRUE)
 
 demand <- demand_intersected
 rm(demand_intersected)
@@ -122,9 +125,9 @@ plot(x = times_ems, y = decay_list_ems, type = "l")
 # export plot
 png("output/fig/decay_functions.png", width=9, height=4.5, units='in', res=300)
 par(mfrow=c(1, 2), mar=c(5,5,4,2))
-plot(x = times_fire, y = decay_list_fire, type="l", xlab="Travel time (min)", ylab="Weight", main="(a) Fire stations")
+plot(x = times_fire, y = decay_list_fire, type="l", xlab="Travel time (min)", ylab="Weight", main="(a) EMS")
 # axis(1, at=seq(0, 15, 1))
-plot(x = times_ems, y = decay_list_ems, type="l", xlab="Travel time (min)", ylab="Weight", main="(b) EMS Hospitals")
+plot(x = times_ems, y = decay_list_ems, type="l", xlab="Travel time (min)", ylab="Weight", main="(b) Hospitals")
 
 dev.off()
 
@@ -283,8 +286,7 @@ m_ohca <- tm_shape(spar, bbox = bound) +
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
 tmap_save(m, "output/fig/spar_ems.png", dpi=300, width=9, height=5)
 
-# export result
-st_write(grid, "output/access_result.gpkg", delete_layer=TRUE)
+
 
 
 # scaling: z-score
@@ -357,26 +359,26 @@ tmap_save(m, paste0("output/fig/access_total_mm.png"), dpi=300, width=9, height=
 
 
 # sum between raw values ----------------
-weight_fire <- 0.7
-weight_ems <- 1-weight_fire
-
-grid <- grid %>%
-        mutate(acc_general = (fire_general*weight_fire + ems_general*weight_ems),
-               acc_ohca = (fire_ohca*weight_fire + ems_ohca*weight_ems))
-
-m_general <- tm_shape(grid, bbox = bound) +
-        tm_fill(col = "acc_general", title="Total access (General)") +
-        tm_shape(study_area) + tm_borders(col = "gray40") +
-        tm_credits("Access of general population", position = c("left", "bottom"))
-m_general
-m_ohca <- tm_shape(grid, bbox = bound) +
-        tm_fill(col = "acc_ohca",  title="Total access (OHCA)") +
-        tm_shape(study_area) + tm_borders(col = "gray40") +
-        tm_credits("Access of estimated OHCA population", position = c("left", "bottom"))
-
-m <- tmap_arrange(m_general, m_ohca, ncol=2)
-m
-tmap_save(m, paste0("output/fig/access_total_", weight_fire, "_", weight_ems, ".png"), dpi=300, width=9, height=5)
+# weight_fire <- 0.7
+# weight_ems <- 1-weight_fire
+# 
+# grid <- grid %>%
+#         mutate(acc_general = (fire_general*weight_fire + ems_general*weight_ems),
+#                acc_ohca = (fire_ohca*weight_fire + ems_ohca*weight_ems))
+# 
+# m_general <- tm_shape(grid, bbox = bound) +
+#         tm_fill(col = "acc_general", title="Total access (General)") +
+#         tm_shape(study_area) + tm_borders(col = "gray40") +
+#         tm_credits("Access of general population", position = c("left", "bottom"))
+# m_general
+# m_ohca <- tm_shape(grid, bbox = bound) +
+#         tm_fill(col = "acc_ohca",  title="Total access (OHCA)") +
+#         tm_shape(study_area) + tm_borders(col = "gray40") +
+#         tm_credits("Access of estimated OHCA population", position = c("left", "bottom"))
+# 
+# m <- tmap_arrange(m_general, m_ohca, ncol=2)
+# m
+# tmap_save(m, paste0("output/fig/access_total_", weight_fire, "_", weight_ems, ".png"), dpi=300, width=9, height=5)
 
 
 # gi --------------------
@@ -437,17 +439,35 @@ tmap_save(m, "output/fig/gi_ems_access.png", dpi=300, width=9, height=5)
 
 # total access
 m_general <- tm_shape(grid, bbox = bound) +
-        tm_fill(col = "gi_acc_general", title="Gi*", palette=gi_palette) +
+        tm_fill(col = "gi_acc_general_mm", title="Gi*", palette=gi_palette) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_credits("Gi* of total access of general population", position = c("left", "bottom"))
 m_ohca <- tm_shape(grid, bbox = bound) +
-        tm_fill(col = "gi_acc_ohca", title="Gi*", palette=gi_palette) +
+        tm_fill(col = "gi_acc_ohca_mm", title="Gi*", palette=gi_palette) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_credits("Gi* of total access of estimated OHCA population", position = c("left", "bottom"))
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
 m
 tmap_save(m, paste0("output/fig/gi_access_total_mm.png"), dpi=300, width=9, height=5)
 
+
+grid <- grid %>%
+        mutate(compare = case_when(gi_acc_general_mm == "High" & gi_acc_ohca_mm == "High" ~ "HH",
+                                   gi_acc_general_mm == "High" & gi_acc_ohca_mm == "Low" ~ "HL",
+                                   gi_acc_general_mm == "Low" & gi_acc_ohca_mm == "High" ~ "LH",
+                                   gi_acc_general_mm == "Low" & gi_acc_ohca_mm == "Low" ~ "LL",
+                                   gi_acc_general_mm == "High" & gi_acc_ohca_mm == "Not significant" ~ "H-",
+                                   gi_acc_general_mm == "Not significant" & gi_acc_ohca_mm == "High" ~ "-H",
+                                   gi_acc_general_mm == "Low" & gi_acc_ohca_mm == "Not significant" ~ "L-",
+                                   gi_acc_general_mm == "Not significant" & gi_acc_ohca_mm == "Low" ~ "-L",
+                                   gi_acc_general_mm == "Not significant" & gi_acc_ohca_mm == "Not significant" ~ "Not significant"))
+
+m <- tm_shape(grid, bbox = bound) +
+        tm_fill(col = "compare", title="Gi*") +
+        tm_shape(study_area) + tm_borders(col = "gray40") +
+        tm_credits("Gi* of total access of estimated OHCA population", position = c("left", "bottom"))
+
+tmap_save(m, paste0("output/fig/gi_access_compare.png"), dpi=300, width=9, height=9)
 
 # BILISA --------------------------------
 ## https://gist.github.com/rafapereirabr/5348193abf779625f5e8c5090776a228
@@ -479,11 +499,24 @@ tmap_save(m, paste0("output/fig/bilisa_access_total_mm.png"), dpi=300, width=9, 
 
 
 
+# compare -------------------
+library(scales)
+
+png("output/fig/acc_comparison.png", width=6, height=5, units='in', res=300)
+par(mfrow=c(1, 1), mar=c(4,6,1,4))
+x <- grid$acc_general_mm
+y <- grid$acc_ohca_mm
+plot(x, y, pch=16, cex=.5,   
+     xlab="Accessibility (General population)", 
+     ylab="Accessibility (OHCA population)",
+     xlim=c(0, 1), 
+     ylim=c(0, 1))
+abline(coef = c(0,1), col="gray50")
+dev.off()
 
 
-
-
-
+# export result
+st_write(grid, "output/access_result.gpkg", delete_layer=TRUE)
 
 
 

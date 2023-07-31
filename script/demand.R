@@ -3,6 +3,7 @@
 #' @description
 #'      심정지 발생확률을 실제 자료로부터 추정한 뒤, 각 격자별로 연령별|성별 발생확률을 곱하여 수요를 추정함. 
 #' @update
+#'      7-30-23: calculate ohca number for all cheongju city
 
 source("load_pkgs.R")
 
@@ -27,6 +28,9 @@ cardiac <- cardiac %>%
         select(P_ADMINCODE, P_ADD_CITY, P_ADD_DIST, H_SEX, AGE) %>%
         as_tibble
 
+# cheongju
+cardiac <- cardiac %>% 
+        mutate(P_ADD_DIST = case_when(grepl("청주", P_ADD_DIST) ~ "청주시", TRUE ~ P_ADD_DIST))
 
 # study area (census)
 census <- read_sf(file.path("data/raw", "bnd_sigungu_00_2021_2021/bnd_sigungu_00_2021_2021_2Q.shp"))
@@ -47,7 +51,22 @@ census_intersected <- census[which(lengths(idx) > 0), ]
 #         filter(!SIGUNGU_NM %in% remove)
 # qtm(census, text = "SIGUNGU_NM")
 
+
+
+census_intersected <- census_intersected %>%
+        mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
+census_intersected <- census_intersected %>% filter(!sido_cd %in% c("31", "37"))
+
 census <- census_intersected
+
+
+# cheongju
+census <- census %>%
+        mutate(SIGUNGU_NM = case_when(grepl("청주", SIGUNGU_NM) ~ "청주시", TRUE ~ SIGUNGU_NM))
+
+qtm(census)
+
+census <- census %>% group_by(SIGUNGU_NM) %>% summarise(n = n())
 
 st_write(census, "data/tidy/study_area_buffer_sgg.gpkg", delete_layer = TRUE)
 # cardiac %>% filter(P_ADMINCODE %in% sgg_cd)
@@ -89,10 +108,12 @@ ohca_num <- cardiac %>%
         group_by(P_ADD_DIST, sex) %>%
         summarise(ohca = n())
 
+ohca_num %>% filter(grepl("청주", P_ADD_DIST))
+
 grid <- read_sf(file.path("data/raw", "grd500m_ngii.gpkg"))
 grid_unique <- grid %>% filter(!duplicated(gid))
 grid_unique <- st_transform(grid_unique, st_crs(census))
-write_sf(grid_unique, file.path("data/raw", "grid500m_ngii_unique.gpkg"))
+st_write(grid_unique, file.path("data/raw", "grid500m_ngii_unique.gpkg"), delete_layer=TRUE)
 grid <- grid_unique
 # rm(grid_unique)
 
@@ -139,7 +160,8 @@ temp <- temp %>% filter(!grepl("전체", sex))
 
 grid_pt_census <- st_join(grid_pt_intersected, census)
 head(grid_pt_census)
-grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_CD, SIGUNGU_NM)
+# grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_CD, SIGUNGU_NM)
+grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_NM)
 
 temp <- temp %>% left_join(grid_pt_census, by="gid")
 

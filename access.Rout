@@ -18,6 +18,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 - Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
 [Previously saved workspace restored]
 
 > #' @title accessibility calculation
@@ -26,6 +27,8 @@ Type 'q()' to quit R.
 > #'      calculate accessibility
 > #' @update
 > #' 
+> 
+> options(scipen = 10)
 > 
 > library(tidyverse)
 ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
@@ -90,6 +93,11 @@ Projected CRS: Korea 2000 / Unified CS
 > area_buffer <- area_buffer %>%
 +         mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
 > area_buffer <- area_buffer %>% filter(!sido_cd %in% c("31", "37"))
+> st_write(area_buffer, "data/tidy/study_area_buffer_sgg.gpkg", delete_layer=TRUE)
+Deleting layer `study_area_buffer_sgg' using driver `GPKG'
+Writing layer `study_area_buffer_sgg' to data source 
+  `data/tidy/study_area_buffer_sgg.gpkg' using driver `GPKG'
+Writing 22 features with 4 fields and geometry type Multi Polygon.
 > 
 > fire <- st_read("data/tidy/poi_fire.gpkg")
 Reading layer `poi_fire' from data source 
@@ -116,6 +124,12 @@ Projected CRS: Korea 2000 / Unified CS
 > # select demand within area_buffer
 > idx <- st_intersects(demand, area_buffer)
 > demand_intersected <- demand[which(lengths(idx) > 0), ]
+> 
+> st_write(demand_intersected, "data/tidy/demand_grid.gpkg", delete_layer = TRUE)
+Deleting layer `demand_grid' using driver `GPKG'
+Writing layer `demand_grid' to data source 
+  `data/tidy/demand_grid.gpkg' using driver `GPKG'
+Writing 6393 features with 3 fields and geometry type Polygon.
 > 
 > demand <- demand_intersected
 > rm(demand_intersected)
@@ -220,9 +234,9 @@ Size: 9 by 5 inches (300 dpi)
 > # export plot
 > png("output/fig/decay_functions.png", width=9, height=4.5, units='in', res=300)
 > par(mfrow=c(1, 2), mar=c(5,5,4,2))
-> plot(x = times_fire, y = decay_list_fire, type="l", xlab="Travel time (min)", ylab="Weight", main="(a) Fire stations")
+> plot(x = times_fire, y = decay_list_fire, type="l", xlab="Travel time (min)", ylab="Weight", main="(a) EMS")
 > # axis(1, at=seq(0, 15, 1))
-> plot(x = times_ems, y = decay_list_ems, type="l", xlab="Travel time (min)", ylab="Weight", main="(b) EMS Hospitals")
+> plot(x = times_ems, y = decay_list_ems, type="l", xlab="Travel time (min)", ylab="Weight", main="(b) Hospitals")
 > 
 > dev.off()
 pdf 
@@ -281,12 +295,13 @@ pdf
 > 
 > temp <- temp %>% left_join(ems_bed, by=c("destin"="id"))
 > temp$supply <- temp$beds
+> # temp$supply <- 1
 > temp <- temp %>%
 +         mutate(s_demand = supply/w_demand,
 +                s_demand_ohca = supply/w_demand_ohca)
 > rj_ems <- temp %>% select(destin, s_demand, s_demand_ohca)
 > 
-> ## calulate Ai
+> ## calculate Ai
 > 
 > temp <- od_ems_w %>%
 +         left_join(rj_ems, by="destin")
@@ -307,7 +322,49 @@ pdf
 +         mutate(fire_general = case_when(is.na(fire_general) ~ 0, TRUE ~ fire_general),
 +                fire_ohca = case_when(is.na(fire_ohca) ~ 0, TRUE ~ fire_ohca))
 > 
-> # compute relative 2SFCA
+> 
+> # map of raw values--------------
+> 
+> palette <- tmaptools::get_brewer_pal("-RdBu", n = 4)
+> bound <- st_bbox(study_area)
+> m_general <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "fire_general", title="Access (General)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_shape(fire) + tm_dots()+
++         tm_credits("Access to fire stations of general population", position = c("left", "bottom"))
+> m_general
+> m_ohca <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "fire_ohca", title="Access (OHCA)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("Access to fire stations of estimated OHCA population", position = c("left", "bottom"))
+> 
+> m <- tmap_arrange(m_general, m_ohca, ncol=2)
+> m
+> tmap_save(m, "output/fig/access_fire.png", dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/access_fire.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> m_general <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "ems_general", title="Access (General)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_shape(fire) + tm_dots()+
++         tm_credits("Access to EMS hospitals of general population", position = c("left", "bottom"))
+> m_ohca <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "ems_ohca", title="Access (OHCA)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("Access to EMS hospitals of estimated OHCA population", position = c("left", "bottom"))
+> 
+> m <- tmap_arrange(m_general, m_ohca, ncol=2)
+> m
+> tmap_save(m, "output/fig/access_ems.png", dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/access_ems.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> 
+> 
+> # compute relative 2SFCA -------------------------
 > spar <- grid %>%
 +         mutate(fire_general_spar = fire_general / mean(fire_general, na.rm = T),
 +                fire_ohca_spar = fire_ohca / mean(fire_ohca, na.rm=T),
@@ -321,6 +378,7 @@ pdf
 > m_general <- tm_shape(spar, bbox = bound) +
 +         tm_fill(col = "fire_general_spar", palette=palette, breaks = c(0, 0.5, 1, 1.5, Inf), title="SPAR (General)") +
 +         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_shape(fire) + tm_dots()+
 +         tm_credits("SPAR to fire stations of general population", position = c("left", "bottom"))
 > 
 > m_ohca <- tm_shape(spar, bbox = bound) +
@@ -351,6 +409,113 @@ Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/spar_ems.png
 Resolution: 2700 by 1500 pixels
 Size: 9 by 5 inches (300 dpi)
 > 
-> proc.time()
-   user  system elapsed 
- 25.854   1.964  25.314 
+> 
+> 
+> 
+> # scaling: z-score
+> 
+> grid <- grid %>%
++         mutate(fire_general_z = (fire_general - mean(fire_general)) / sd(fire_general),
++                fire_ohca_z = (fire_ohca - mean(fire_ohca)) / sd(fire_ohca),
++                ems_general_z = (ems_general - mean(ems_general)) / sd(ems_general),
++                ems_ohca_z = (ems_ohca - mean(ems_ohca)) / sd(ems_ohca))
+> 
+> 
+> mean_value <- mean(grid$ems_general_z)
+> one_sd <- sd(grid$ems_general)
+> 
+> m_general <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "ems_general_z", midpoint=NA,
++                 breaks = c(-Inf, 0-one_sd, 0 - one_sd/4, 0+one_sd/4, 0 + one_sd, Inf), 
++                 title="SPAR (General)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_shape(fire) + tm_dots()+
++         tm_credits("SPAR to fire stations of general population", position = c("left", "bottom"))
+> m_general
+> # compute bivariate moran's I
+> 
+> 
+> hist(grid$fire_general_z)
+> hist(grid$ems_general_z)
+> 
+> 
+> 
+> # scaling: min-max
+> 
+> min_max_func <- function(x){
++         res <- (x - min(x)) / (max(x)-min(x))
++         return(res)
++ }
+> 
+> grid <- grid %>% 
++         mutate(fire_general_mm = min_max_func(fire_general),
++                fire_ohca_mm = min_max_func(fire_ohca), 
++                ems_general_mm = min_max_func(ems_general),
++                ems_ohca_mm = min_max_func(ems_ohca)) 
+> 
+> hist(grid$fire_general_mm)
+> hist(grid$ems_general_mm)
+> 
+> 
+> summary(grid$fire_general)
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+0.00000000 0.00002023 0.00002351 0.00003634 0.00002740 0.00038840 
+> summary(grid$ems_general)
+      Min.    1st Qu.     Median       Mean    3rd Qu.       Max. 
+0.00003422 0.00020067 0.00025255 0.00024300 0.00029518 0.00032885 
+> 
+> 
+> grid <- grid %>%
++         mutate(acc_general_mm = fire_general_mm + ems_general_mm,
++                acc_ohca_mm = fire_ohca_mm + ems_ohca_mm)
+> 
+> m_general <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "acc_general_mm", title="Total access (General)", breaks=c(0, 0.25, 0.5, 0.75, 1, 1.5, Inf)) +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("Access of general population", position = c("left", "bottom"))
+> m_general
+> m_ohca <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "acc_ohca_mm",  title="Total access (OHCA)", breaks=c(0, 0.25, 0.5, 0.75, 1, 1.5, Inf)) +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("Access of estimated OHCA population", position = c("left", "bottom"))
+> 
+> m <- tmap_arrange(m_general, m_ohca, ncol=2)
+> m
+> tmap_save(m, paste0("output/fig/access_total_mm.png"), dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/access_total_mm.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> 
+> 
+> # sum between raw values ----------------
+> weight_fire <- 0.7
+> weight_ems <- 1-weight_fire
+> 
+> grid <- grid %>%
++         mutate(acc_general = (fire_general*weight_fire + ems_general*weight_ems),
++                acc_ohca = (fire_ohca*weight_fire + ems_ohca*weight_ems))
+> 
+> m_general <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "acc_general", title="Total access (General)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("Access of general population", position = c("left", "bottom"))
+> m_general
+> m_ohca <- tm_shape(grid, bbox = bound) +
++         tm_fill(col = "acc_ohca",  title="Total access (OHCA)") +
++         tm_shape(study_area) + tm_borders(col = "gray40") +
++         tm_credits("Access of estimated OHCA population", position = c("left", "bottom"))
+> 
+> m <- tmap_arrange(m_general, m_ohca, ncol=2)
+> m
+> tmap_save(m, paste0("output/fig/access_total_", weight_fire, "_", weight_ems, ".png"), dpi=300, width=9, height=5)
+Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/fig/access_total_0.7_0.3.png
+Resolution: 2700 by 1500 pixels
+Size: 9 by 5 inches (300 dpi)
+> 
+> 
+> # gi --------------------
+> 
+> library(spdep)
+Error: package ‘spData’ required by ‘spdep’ could not be found
+Execution halted
