@@ -18,6 +18,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 - Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
 [Previously saved workspace restored]
 
 > #' @title make road network data
@@ -231,8 +232,8 @@ attribute variables are assumed to be spatially constant throughout all geometri
 > 
 > tmap_save(m, filename = "output/explore/travel_time_level6.png")
 Map saved to /home/kyusik/Projects/R23-03-ohca_korea/output/explore/travel_time_level6.png
-Resolution: 2150.838 by 2050.364 pixels
-Size: 7.169458 by 6.834547 inches (300 dpi)
+Resolution: 1901.727 by 2318.945 pixels
+Size: 6.33909 by 7.729816 inches (300 dpi)
 > 
 > 
 > # export road network in study area
@@ -243,8 +244,8 @@ Size: 7.169458 by 6.834547 inches (300 dpi)
 Deleting layer `road_network' using driver `GPKG'
 Writing layer `road_network' to data source 
   `data/tidy/road_network.gpkg' using driver `GPKG'
-Writing 64129 features with 3 fields and geometry type Unknown (any).
+Writing 63934 features with 3 fields and geometry type Unknown (any).
 > 
 > proc.time()
    user  system elapsed 
-122.338   1.875 120.556 
+124.524   2.133 123.872 

@@ -4,6 +4,7 @@
 #'      심정지 발생확률을 실제 자료로부터 추정한 뒤, 각 격자별로 연령별|성별 발생확률을 곱하여 수요를 추정함. 
 #' @update
 #'      7-30-23: calculate ohca number for all cheongju city
+#'      8-1-23: Include 
 
 source("load_pkgs.R")
 
@@ -202,7 +203,7 @@ demand <- temp %>%
         summarise(demand = sum(val), 
                   demand_ohca = sum(val_ohca))
 
-demand <- demand %>% filter(demand > 0)
+# demand <- demand %>% filter(demand > 0)
 
 grid_area <- grid %>% filter(gid %in% unique(demand$gid))
 demand_grid <- grid_area %>% left_join(demand, by="gid")

@@ -75,11 +75,11 @@ par(mfrow=c(1, 2), mar=c(5,5,4,2))
 hist(grid$fire_avg_time, 
      main = "Average travel time from EMS", 
      xlab = "Average travel time (min)", 
-     ylab = "Frequency", ylim = c(0, 300))
+     ylab = "Frequency")
 hist(grid$ems_avg_time, 
      main = "Average travel time to hospitals", 
      xlab = "Average travel time (min)", 
-     ylab = "Frequency", ylim = c(0, 250))
+     ylab = "Frequency")
 dev.off()
 
 # histogram of min travel time
@@ -88,11 +88,11 @@ par(mfrow=c(1, 2), mar=c(5,5,4,2))
 hist(grid$fire_min_time, 
      main = "Travel time from the nearest EMS", 
      xlab = "Travel time (min)", 
-     ylab = "Frequency", ylim = c(0, 250))
+     ylab = "Frequency")
 hist(grid$ems_min_time, 
      main = "Travel time to the nearest hospitals", 
      xlab = "Travel time (min)", 
-     ylab = "Frequency", ylim = c(0, 200), breaks=14)
+     ylab = "Frequency", breaks=16)
 dev.off()
 
 # buffered area information ----------------------------------
@@ -115,7 +115,7 @@ qtm(buffer_sgg) + qtm(fire)
 qtm(buffer_sgg) + qtm(hospital)
 
 road <- st_read("data/tidy/road_network.gpkg")
-qtm(road)
+# qtm(road)
 
 # time to speed
 # distance/time*60
@@ -128,11 +128,17 @@ background_maps <- tm_shape(buffer_sgg) + tm_borders(col = "gray20", lwd = .5) +
 
 # population
 g1 <- tm_shape(demand, bbox = bounding) +
-        tm_fill(col="demand", style="quantile", n=5, palette="viridis", title = "General population") +
+        tm_fill(col="demand", 
+                # style="quantile", n=5, 
+                breaks = c(-Inf, 100,  500, 750, 1000, 2000, Inf),
+                palette="viridis", title = "General population") +
         background_maps +
         tm_layout(title = "(a) General population", frame = FALSE, legend.position = c("left", "bottom"))
 g2 <- tm_shape(demand, bbox = bounding) +
-        tm_fill(col="demand_ohca", style="quantile", n=5, palette="viridis", title = "OHCA population") +
+        tm_fill(col="demand_ohca", 
+                # style="quantile", n=5, 
+                breaks = c(-Inf, 100,  500, 750, 1000, 2000, Inf),
+                palette="viridis", title = "OHCA population") +
         background_maps +
         tm_layout(title = "(b) OHCA population", frame = FALSE, legend.position = c("left", "bottom"))
 g2

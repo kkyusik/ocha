@@ -19,7 +19,7 @@ emsbed.Rout: script/emsbed.R
 firestation.Rout: script/firestation.R
 	R CMD BATCH script/firestation.R	
 
-roadnetwork.Rout: script/roadnetwork.R
+roadnetwork.Rout: script/roadnetwork.R demand.Rout
 	R CMD BATCH script/roadnetwork.R
 
 explore.Rout: script/explore.R roadnetwork.Rout firestation.Rout emsbed.Rout

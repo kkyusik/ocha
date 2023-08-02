@@ -18,6 +18,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 - Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
 [Previously saved workspace restored]
 
 > #' @title do_demand_estimation
@@ -25,6 +26,8 @@ Type 'q()' to quit R.
 > #' @description
 > #'      심정지 발생확률을 실제 자료로부터 추정한 뒤, 각 격자별로 연령별|성별 발생확률을 곱하여 수요를 추정함. 
 > #' @update
+> #'      7-30-23: calculate ohca number for all cheongju city
+> #'      8-1-23: Include 
 > 
 > source("load_pkgs.R")
 > 
@@ -85,6 +88,9 @@ The following object is masked from ‘package:purrr’:
 +         select(P_ADMINCODE, P_ADD_CITY, P_ADD_DIST, H_SEX, AGE) %>%
 +         as_tibble
 > 
+> # cheongju
+> cardiac <- cardiac %>% 
++         mutate(P_ADD_DIST = case_when(grepl("청주", P_ADD_DIST) ~ "청주시", TRUE ~ P_ADD_DIST))
 > 
 > # study area (census)
 > census <- read_sf(file.path("data/raw", "bnd_sigungu_00_2021_2021/bnd_sigungu_00_2021_2021_2Q.shp"))
@@ -105,12 +111,28 @@ The following object is masked from ‘package:purrr’:
 > #         filter(!SIGUNGU_NM %in% remove)
 > # qtm(census, text = "SIGUNGU_NM")
 > 
+> 
+> 
+> census_intersected <- census_intersected %>%
++         mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
+> census_intersected <- census_intersected %>% filter(!sido_cd %in% c("31", "37"))
+> 
 > census <- census_intersected
 > 
+> 
+> # cheongju
+> census <- census %>%
++         mutate(SIGUNGU_NM = case_when(grepl("청주", SIGUNGU_NM) ~ "청주시", TRUE ~ SIGUNGU_NM))
+> 
+> qtm(census)
+> 
+> census <- census %>% group_by(SIGUNGU_NM) %>% summarise(n = n())
+> 
 > st_write(census, "data/tidy/study_area_buffer_sgg.gpkg", delete_layer = TRUE)
+Deleting layer `study_area_buffer_sgg' using driver `GPKG'
 Writing layer `study_area_buffer_sgg' to data source 
   `data/tidy/study_area_buffer_sgg.gpkg' using driver `GPKG'
-Writing 25 features with 3 fields and geometry type Multi Polygon.
+Writing 19 features with 2 fields and geometry type Unknown (any).
 > # cardiac %>% filter(P_ADMINCODE %in% sgg_cd)
 > 
 > selection <- census$SIGUNGU_NM
@@ -155,10 +177,36 @@ Writing 25 features with 3 fields and geometry type Multi Polygon.
 `summarise()` has grouped output by 'P_ADD_DIST'. You can override using the
 `.groups` argument.
 > 
+> ohca_num %>% filter(grepl("청주", P_ADD_DIST))
+# A tibble: 16 × 3
+# Groups:   P_ADD_DIST [1]
+   P_ADD_DIST sex        ohca
+   <chr>      <chr>     <int>
+ 1 청주시     20대 남자     6
+ 2 청주시     20대 여자     6
+ 3 청주시     30대 남자    10
+ 4 청주시     30대 여자     3
+ 5 청주시     40대 남자    24
+ 6 청주시     40대 여자     6
+ 7 청주시     50대 남자    47
+ 8 청주시     50대 여자    21
+ 9 청주시     60대 남자    64
+10 청주시     60대 여자    21
+11 청주시     70대 남자    62
+12 청주시     70대 여자    34
+13 청주시     80대 남자    73
+14 청주시     80대 여자    83
+15 청주시     90대 남자     9
+16 청주시     90대 여자    25
+> 
 > grid <- read_sf(file.path("data/raw", "grd500m_ngii.gpkg"))
 > grid_unique <- grid %>% filter(!duplicated(gid))
 > grid_unique <- st_transform(grid_unique, st_crs(census))
-> write_sf(grid_unique, file.path("data/raw", "grid500m_ngii_unique.gpkg"))
+> st_write(grid_unique, file.path("data/raw", "grid500m_ngii_unique.gpkg"), delete_layer=TRUE)
+Deleting layer `grid500m_ngii_unique' using driver `GPKG'
+Writing layer `grid500m_ngii_unique' to data source 
+  `data/raw/grid500m_ngii_unique.gpkg' using driver `GPKG'
+Writing 413450 features with 1 fields and geometry type Polygon.
 > grid <- grid_unique
 > # rm(grid_unique)
 > 
@@ -207,21 +255,22 @@ st_centroid assumes attributes are constant over geometries
 > 
 > grid_pt_census <- st_join(grid_pt_intersected, census)
 > head(grid_pt_census)
-Simple feature collection with 6 features and 4 fields
+Simple feature collection with 6 features and 3 fields
 Geometry type: POINT
 Dimension:     XY
-Bounding box:  xmin: 971250 ymin: 1898750 xmax: 992750 ymax: 1903250
+Bounding box:  xmin: 973750 ymin: 1878250 xmax: 996250 ymax: 1893750
 Projected CRS: Korea 2000 / Unified CS
-# A tibble: 6 × 5
-  gid                    geom BASE_DATE SIGUNGU_CD SIGUNGU_NM
-  <chr>           <POINT [m]> <chr>     <chr>      <chr>     
-1 다사92b02b (992750 1902750) 20210630  31220      안성시    
-2 다사74a01a (974250 1901250) 20210630  31220      안성시    
-3 다바71a98b (971250 1898750) 20210630  31220      안성시    
-4 다사87a00b (987250 1900750) 20210630  31220      안성시    
-5 다사86b00a (986750 1900250) 20210630  31220      안성시    
-6 다사78a03a (978250 1903250) 20210630  31220      안성시    
-> grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_CD, SIGUNGU_NM)
+# A tibble: 6 × 4
+  gid                    geom SIGUNGU_NM        n
+  <chr>           <POINT [m]> <chr>         <int>
+1 다바73b82b (973750 1882750) 천안시 서북구     1
+2 다바77b80a (977750 1880250) 천안시 서북구     1
+3 다바80a78a (980250 1878250) 천안시 서북구     1
+4 다바86b83b (986750 1883750) 진천군            1
+5 다바96a93b (996250 1893750) 음성군            1
+6 다바94b90a (994750 1890250) 진천군            1
+> # grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_CD, SIGUNGU_NM)
+> grid_pt_census <- grid_pt_census %>% as_tibble %>% select(gid, SIGUNGU_NM)
 > 
 > temp <- temp %>% left_join(grid_pt_census, by="gid")
 > 
@@ -255,21 +304,21 @@ Projected CRS: Korea 2000 / Unified CS
 +         mutate(val_ohca = val * ohca_ratio)
 > 
 > temp %>% filter(is.na(val_ohca)) # there are NA of val_ohca
-# A tibble: 11,762 × 11
-   gid          val sex       SIGUNGU_CD SIGUNGU_NM name    pop  ohca ohca_ratio
-   <chr>      <dbl> <chr>     <chr>      <chr>      <chr> <dbl> <dbl>      <dbl>
- 1 다바96a93b     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 2 다바96a91a     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 3 다바95b91a     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 4 다바96b94a     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 5 다바95b90b     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 6 다바97a94b     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 7 다바98a94b     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 8 다바97b94b     0 90대 남자 33370      음성군     음성…     0     2        Inf
- 9 라사12b05b     0 90대 남자 33370      음성군     음성…     0     2        Inf
-10 라사13b04b     0 90대 남자 33370      음성군     음성…     0     2        Inf
+# A tibble: 11,762 × 10
+   gid         val sex   SIGUNGU_NM name    pop  ohca ohca_ratio ohca_ratio_100k
+   <chr>     <dbl> <chr> <chr>      <chr> <dbl> <dbl>      <dbl>           <dbl>
+ 1 다바96a9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 2 다바96a9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 3 다바95b9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 4 다바96b9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 5 다바95b9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 6 다바97a9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 7 다바98a9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 8 다바97b9…     0 90대… 음성군     음성…     0     2        Inf             Inf
+ 9 라사12b0…     0 90대… 음성군     음성…     0     2        Inf             Inf
+10 라사13b0…     0 90대… 음성군     음성…     0     2        Inf             Inf
 # ℹ 11,752 more rows
-# ℹ 2 more variables: ohca_ratio_100k <dbl>, val_ohca <dbl>
+# ℹ 1 more variable: val_ohca <dbl>
 > temp <- temp %>%
 +         mutate(val_ohca = case_when(is.na(val_ohca) ~ 0, TRUE ~ val_ohca))
 > 
@@ -279,7 +328,7 @@ Projected CRS: Korea 2000 / Unified CS
 +         summarise(demand = sum(val), 
 +                   demand_ohca = sum(val_ohca))
 > 
-> demand <- demand %>% filter(demand > 0)
+> # demand <- demand %>% filter(demand > 0)
 > 
 > grid_area <- grid %>% filter(gid %in% unique(demand$gid))
 > demand_grid <- grid_area %>% left_join(demand, by="gid")
@@ -307,4 +356,4 @@ Projected CRS: Korea 2000 / Unified CS
 > 
 > proc.time()
    user  system elapsed 
-138.381   6.315 137.948 
+142.869   6.132 141.569 

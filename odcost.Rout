@@ -18,6 +18,7 @@ Type 'demo()' for some demos, 'help()' for on-line help, or
 Type 'q()' to quit R.
 
 - Project '~/Projects/R23-03-ohca_korea' loaded. [renv 1.0.0]
+- The project is out-of-sync -- use `renv::status()` for details.
 [Previously saved workspace restored]
 
 > #' @title calculate od cost
@@ -165,4 +166,4 @@ In st_cast.sf(road, "LINESTRING") :
 > 
 > proc.time()
    user  system elapsed 
-119.486   1.684 119.807 
+397.600   1.905 397.336 
