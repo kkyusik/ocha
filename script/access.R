@@ -38,35 +38,35 @@ demand <- demand_intersected
 rm(demand_intersected)
 
 
-# adjust demand_ohca according to total population
+# adjust demand_ohca according to total population ---------
 # needs sgg
 
-demand.ppp <- st_centroid(demand)
-demand.sgg <- st_join(demand.ppp, area_buffer)
-
-demand.w <- demand.sgg %>%
-        as_tibble %>%
-        group_by(SIGUNGU_NM) %>%
-        summarise(demand_pop = sum(demand),
-                  demand_ohca_pop = sum(demand_ohca))
-
-demand.w$weight <- demand.w$demand_pop/demand.w$demand_ohca_pop
-
-demand.sgg <- demand.sgg %>% left_join(demand.w, by="SIGUNGU_NM")
-demand.sgg <- demand.sgg %>%
-        mutate(demand_ohca = demand_ohca * weight)
-
-demand.sgg %>%
-        as_tibble %>%
-        group_by(SIGUNGU_NM) %>%
-        summarise(demand = sum(demand),
-                  ohca = sum(demand_ohca))
-
-demand <- demand %>%
-        select(gid) %>%
-        left_join(demand.sgg %>% as_tibble %>% select(gid, demand, demand_ohca), by="gid")
-
-st_write(demand, "data/tidy/demand_grid.gpkg", delete_layer = TRUE)
+# demand.ppp <- st_centroid(demand)
+# demand.sgg <- st_join(demand.ppp, area_buffer)
+# 
+# demand.w <- demand.sgg %>%
+#         as_tibble %>%
+#         group_by(SIGUNGU_NM) %>%
+#         summarise(demand_pop = sum(demand),
+#                   demand_ohca_pop = sum(demand_ohca))
+# 
+# demand.w$weight <- demand.w$demand_pop/demand.w$demand_ohca_pop
+# 
+# demand.sgg <- demand.sgg %>% left_join(demand.w, by="SIGUNGU_NM")
+# demand.sgg <- demand.sgg %>%
+#         mutate(demand_ohca = demand_ohca * weight)
+# 
+# demand.sgg %>%
+#         as_tibble %>%
+#         group_by(SIGUNGU_NM) %>%
+#         summarise(demand = sum(demand),
+#                   ohca = sum(demand_ohca))
+# 
+# demand <- demand %>%
+#         select(gid) %>%
+#         left_join(demand.sgg %>% as_tibble %>% select(gid, demand, demand_ohca), by="gid")
+# 
+# st_write(demand, "data/tidy/demand_grid.gpkg", delete_layer = TRUE)
 
 # filtering cheongju
 study_area <- st_read("data/tidy/study_area_sgg.gpkg")
@@ -197,6 +197,9 @@ boxplot(grid$min_time_total,
         main=paste0("Mean: ", round(mean(grid$min_time_total), 2), 
                     "\nSD: ", round(sd(grid$min_time_total),2)))
 dev.off()
+
+
+
 
 # firestation time decay function
 
@@ -359,9 +362,13 @@ palette <- tmaptools::get_brewer_pal("-RdBu", n = 4)
 bound <- st_bbox(study_area)
 m_general <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "fire_general", title="Access (General)", palette = "viridis",
-                breaks=c(-Inf, 0.000025, 0.000100, 0.000200, Inf), 
-                labels = c("Less than 0.000025", "0.00025 to 0.0001",
-                           "0.0001 to 0.0002", "0.0002 or more", "Missing")) +
+                textNA = "Inaccessible",
+                # breaks=c(-Inf, 0.000025, 0.000100, 0.000200, Inf),
+                # labels = c("Less than 0.000025", "0.00025 to 0.0001",
+                #            "0.0001 to 0.0002", "0.0002 or more", "Missing"),
+                labels = c("1th quintile", "2nd quintile", "3rd quintile",
+                           "4th quintile", "5th quintile"),
+                style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) Access to EMS (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
@@ -369,9 +376,13 @@ m_general <- tm_shape(grid, bbox = bound) +
 m_general
 m_ohca <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "fire_ohca", title="Access (OHCA)", palette = "viridis",
-                breaks=c(-Inf, 0.000025, 0.0001, 0.0002, Inf), 
-                labels = c("Less than 0.000025", "0.00025 to 0.0001",
-                           "0.0001 to 0.0002", "0.0002 or more", "Missing")) +
+                textNA = "Inaccessible",
+                # breaks=c(-Inf, 0.000025, 0.0001, 0.0002, Inf), 
+                # labels = c("Less than 0.000025", "0.00025 to 0.0001",
+                           # "0.0001 to 0.0002", "0.0002 or more", "Missing"),
+                labels = c("1th quintile", "2nd quintile", "3rd quintile",
+                           "4th quintile", "5th quintile"),
+                style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) Access to EMS (OHCA)", frame=F)
 
@@ -381,14 +392,22 @@ tmap_save(m, "output/fig/access_fire.png", dpi=300, width=9, height=5)
 
 m_general <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "ems_general", title="Access (General)", palette = "viridis",
-                breaks=c(-Inf, 0.0001, 0.0002, 0.0003, Inf)) +
+                textNA = "Inaccessible",
+                # breaks=c(-Inf, 0.0001, 0.0002, 0.0003, Inf),
+                labels = c("1th quintile", "2nd quintile", "3rd quintile",
+                           "4th quintile", "5th quintile"),
+                style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) Access to hospital (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
 m_ohca <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "ems_ohca", title="Access (OHCA)", palette = "viridis",
-                breaks=c(-Inf, 0.0001, 0.0002, 0.0003, Inf)) +
+                textNA = "Inaccessible",
+                # breaks=c(-Inf, 0.0001, 0.0002, 0.0003, Inf),
+                labels = c("1th quintile", "2nd quintile", "3rd quintile",
+                           "4th quintile", "5th quintile"),
+                style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) Access to hospital (OHCA)", frame=F)
 
@@ -416,7 +435,7 @@ tmap_save(m, "output/fig/access_ems.png", dpi=300, width=9, height=5)
 # 
 # tmap_save(m_diff, "output/fig/access_total_difference.png", dpi=300, width=6, height=6)
 
-# compute relative 2SFCA -------------------------
+# compute relative 2SFCA (SPAR) -------------------------
 grid <- grid %>%
         mutate(fire_general_spar = fire_general / mean(fire_general, na.rm = T),
                fire_ohca_spar = fire_ohca / mean(fire_ohca, na.rm=T),
@@ -425,11 +444,12 @@ grid <- grid %>%
 
 # map SPAR of fire
 
-palette <- tmaptools::get_brewer_pal("-RdBu", n = 8)
+palette <- tmaptools::get_brewer_pal("-RdBu", n = 6)
 bound <- st_bbox(study_area)
 m_general <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "fire_general_spar", palette=palette, 
-                breaks = c(-Inf, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, Inf), title="SPAR (General)") +
+                textNA = "Inaccessible",
+                breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (General)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) SPAR to EMS (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
@@ -437,7 +457,8 @@ m_general <- tm_shape(grid, bbox = bound) +
 
 m_ohca <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "fire_ohca_spar", palette=palette, 
-                breaks = c(-Inf, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, Inf), title="SPAR (OHCA)") +
+                textNA = "Inaccessible",
+                breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (OHCA)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(b) SPAR to EMS (OHCA)", frame=F)
 
@@ -448,6 +469,7 @@ tmap_save(m, "output/fig/spar_fire.png", dpi=300, width=9, height=5)
 # map SPAR of ems
 m_general <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "ems_general_spar", palette=palette, 
+                textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (General)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) SPAR to hospital (General)", frame=F) +
@@ -456,6 +478,7 @@ m_general <- tm_shape(grid, bbox = bound) +
 
 m_ohca <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "ems_ohca_spar", palette=palette, 
+                textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (OHCA)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(b) SPAR to hospital (OHCA)", frame=F)
@@ -482,8 +505,19 @@ grid <- grid %>%
 
 # minmax - raw values
 m_general <- tm_shape(grid, bbox = bound) +
-        tm_fill(col = "acc_general_mm", title="Total access (General)", palette = "viridis", 
-                breaks=c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf)) +
+        tm_fill(col = "acc_general_mm", title="Total access (General)", palette = "viridis",
+                style = "quantile", n=5, textNA = "Inaccessible",
+                labels = c(
+                        "1st quintile (0.012 to 0.486)",
+                        "2nd quintile (0.486 to 0.625)",
+                        "3rd quintile (0.625 to 0.783)",
+                        "4th quintile (0.783 to 0.914)",
+                        "5th quintile (0.914 to 1.267)",
+                        "Inaccessible"
+                )
+                # breaks=c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf),
+                # breaks=c(-Inf, 0.25, 0.5, 0.75, 1, 1.25, Inf)
+                ) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) Total access (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
@@ -491,7 +525,17 @@ m_general <- tm_shape(grid, bbox = bound) +
 m_general
 m_ohca <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "acc_ohca_mm",  title="Total access (OHCA)", palette = "viridis", 
-                breaks=c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf)) +
+                style = "quantile", n=5, textNA = "Inaccessible",
+                labels = c(
+                        "1st quintile (0.051 to 0.581)",
+                        "2nd quintile (0.581 to 0.767)",
+                        "3rd quintile (0.767 to 0.939)",
+                        "4th quintile (0.939 to 1.089)",
+                        "5th quintile (1.089 to 1.437)"
+                )
+                # breaks=c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf),
+                # breaks=c(-Inf, 0.25, 0.5, 0.75, 1, 1.25, Inf)
+                ) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(b) Total access (OHCA)", frame=F)
 
@@ -511,6 +555,7 @@ palette <- tmaptools::get_brewer_pal("-RdBu", n = 6)
 
 m_general <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "acc_general_mm_spar", palette=palette, 
+                textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (General)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) SPAR of total access (General)", frame=F) +
@@ -519,6 +564,7 @@ m_general <- tm_shape(grid, bbox = bound) +
 
 m_ohca <- tm_shape(grid, bbox = bound) +
         tm_fill(col = "acc_ohca_mm_spar", palette=palette, 
+                textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (OHCA)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(b) SPAR of total access (OHCA)", frame=F)
@@ -531,15 +577,18 @@ tmap_save(m, "output/fig/acc_mm_spar.png", dpi=300, width=9, height=5)
 # minmax comparison
 
 grid <- grid %>%
-        mutate(acc_compare_mm_ratio = (acc_ohca_mm/acc_general_mm*100)-100)
+        mutate(acc_compare_mm_ratio = (acc_ohca_mm/acc_general_mm))
 
 hist(grid$acc_compare_mm_ratio)
 
 palette <- tmaptools::get_brewer_pal("-RdBu", n = 6)
 m_diff <- tm_shape(grid, bbox = bound) +
-        tm_fill(col = "acc_compare_mm_ratio", title="Comparison\nOHCA/General (%)", midpoint = 0,
+        tm_fill(col = "acc_compare_mm_ratio", title="Comparison\nOHCA/General", midpoint = 1,
+                textNA = "Inaccessible",
                 palette = palette,
-                breaks=c(-Inf, -2.5, 0, 2.5, 5, Inf)) +
+                # breaks=c(-Inf, -2.5, 0, 2.5, 5, Inf),
+                breaks=c(min(grid$acc_compare_mm_ratio, na.rm=T), 0.9, 1, 1.1,  1.3, Inf)
+                ) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(frame=F) +
         tm_compass(position = c("left", "bottom")) +
@@ -547,6 +596,77 @@ m_diff <- tm_shape(grid, bbox = bound) +
 m_diff
 
 tmap_save(m_diff, "output/fig/access_total_mm_difference.png", dpi=300, width=6, height=6)
+
+
+
+# bilisa of minmax total access -------------------------
+
+# library(spdep)
+# library(rgeoda)
+# library(rgdal)
+# 
+# temp <- grid %>% filter(!is.na(acc_general_mm))
+# 
+# W <- rgeoda::queen_weights(temp)
+# 
+# W <- rgeoda::distance_weights(temp, dist_thres = 5000)
+# 
+# qsa <- local_bimoran(W, temp[c("acc_general_mm", "acc_ohca_mm")], significance_cutoff = 0.05, permutations = 999)
+# 
+# lisa_clusters <- lisa_clusters(qsa)
+# lms <- lisa_values(qsa)
+# lisa_labels <- lisa_labels(qsa)
+# lisa_clusters[lisa_clusters==0] <- lisa_labels[1]
+# lisa_clusters[lisa_clusters==1] <- lisa_labels[2]
+# lisa_clusters[lisa_clusters==2] <- lisa_labels[3]
+# lisa_clusters[lisa_clusters==3] <- lisa_labels[4]
+# lisa_clusters[lisa_clusters==4] <- lisa_labels[5]
+# lisa_clusters[lisa_clusters==5] <- lisa_labels[6]
+# lisa_clusters[lisa_clusters==6] <- lisa_labels[7]
+# 
+# temp$acc_bilisa <- lisa_clusters
+# 
+# bilisa_palette <- c('#fb9a99', '#e31a1c', '#1f78b4', '#a6cee3', '#f7f7f7')
+# m <- tm_shape(temp, bbox = bound) +
+#         tm_fill(col="acc_bilisa", palette=bilisa_palette, title="Bivariate LISA clusters\nGeneral - OHCA") +
+#         tm_shape(study_area) + tm_borders(col = "gray40")
+# m
+# tmap_save(m, paste0("output/fig/bilisa_access_total_mm.png"), dpi=300, width=9, height=8.5)
+
+
+# bilisa between general access - demand_ohca
+# 
+# W <- rgeoda::queen_weights(temp)
+# 
+# # W <- rgeoda::distance_weights(temp, dist_thres = 2000)
+# 
+# qsa <- local_bimoran(W, temp[c("fire_general", "demand_ohca")], significance_cutoff = 0.05, permutations = 999)
+# 
+# lisa_clusters <- lisa_clusters(qsa)
+# lms <- lisa_values(qsa)
+# lisa_labels <- lisa_labels(qsa)
+# lisa_clusters[lisa_clusters==0] <- lisa_labels[1]
+# lisa_clusters[lisa_clusters==1] <- lisa_labels[2]
+# lisa_clusters[lisa_clusters==2] <- lisa_labels[3]
+# lisa_clusters[lisa_clusters==3] <- lisa_labels[4]
+# lisa_clusters[lisa_clusters==4] <- lisa_labels[5]
+# lisa_clusters[lisa_clusters==5] <- lisa_labels[6]
+# lisa_clusters[lisa_clusters==6] <- lisa_labels[7]
+# 
+# temp$acc_bilisa <- factor(lisa_clusters, levels = c("High-High", "High-Low", "Low-High", "Low-Low", "Not significant"))
+# 
+# 
+# 
+# bilisa_palette <- c('#fb9a99', '#e31a1c', '#1f78b4', '#a6cee3', '#f7f7f7')
+# bilisa_palette <- c('#e31a1c', '#fb9a99', '#a6cee3', '#1f78b4', '#f7f7f7')
+# m <- tm_shape(temp, bbox = bound) +
+#         tm_fill(col="acc_bilisa", palette=bilisa_palette, 
+#                 title="Bivariate LISA clusters\nGeneral 119 access - OHCA demand") +
+#         tm_shape(study_area) + tm_borders(col = "gray40") +
+#         tm_layout(title = "1st order queen weights")
+#         # tm_layout(title = "2000 m distance weights")
+# m
+
 
 
 # sum between raw values ----------------
