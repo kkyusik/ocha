@@ -9,3 +9,5 @@ fig
 tab
 report
 *.pdf
+
+script/firestation.R
