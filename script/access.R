@@ -16,6 +16,12 @@ library(data.table)
 area <- st_read("data/tidy/study_area_sgg.gpkg")
 road <- st_read("data/tidy/road_network.gpkg")
 
+# emd
+dong <- st_read("data/raw/bnd_dong_00_2021_2021/bnd_dong_00_2021_2021_2Q.shp") 
+dong <- st_centroid(dong)
+dong$name <- dong$ADM_DR_NM
+
+
 area_buffer <- read_sf("data/tidy/study_area_buffer_sgg.gpkg")
 # area_buffer <- area_buffer %>%
 #         mutate(sido_cd = substr(SIGUNGU_CD, 1, 2))
@@ -37,6 +43,18 @@ demand_intersected <- demand[which(lengths(idx) > 0), ]
 demand <- demand_intersected
 rm(demand_intersected)
 
+
+# Check 
+qtm(area_buffer)
+qtm(area_buffer) + qtm(fire) + qtm(ems)
+qtm(area)
+qtm(demand)
+
+sink("report/data_information.txt")
+cat("Number of firestation", nrow(fire), "\n")
+cat("Number of hospitals", nrow(ems), "\n")
+cat("Number of grids", nrow(demand))
+sink()
 
 # adjust demand_ohca according to total population ---------
 # needs sgg
@@ -370,6 +388,7 @@ m_general <- tm_shape(grid, bbox = bound) +
                            "4th quintile", "5th quintile"),
                 style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("오송|미원", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) Access to EMS (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
@@ -384,6 +403,7 @@ m_ohca <- tm_shape(grid, bbox = bound) +
                            "4th quintile", "5th quintile"),
                 style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("오송|미원", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) Access to EMS (OHCA)", frame=F)
 
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
@@ -398,6 +418,7 @@ m_general <- tm_shape(grid, bbox = bound) +
                            "4th quintile", "5th quintile"),
                 style="quantile", n=5) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("오송", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) Access to hospital (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
@@ -408,6 +429,7 @@ m_ohca <- tm_shape(grid, bbox = bound) +
                 labels = c("1th quintile", "2nd quintile", "3rd quintile",
                            "4th quintile", "5th quintile"),
                 style="quantile", n=5) +
+        # tm_shape(filter(dong, grepl("오송", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_shape(study_area) + tm_borders(col = "gray40") +
         tm_layout(title = "(a) Access to hospital (OHCA)", frame=F)
 
@@ -451,6 +473,7 @@ m_general <- tm_shape(grid, bbox = bound) +
                 textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (General)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("오송|미원|낭성|가덕|문의", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) SPAR to EMS (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
@@ -460,6 +483,7 @@ m_ohca <- tm_shape(grid, bbox = bound) +
                 textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (OHCA)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("오송|미원|낭성|가덕|문의", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(b) SPAR to EMS (OHCA)", frame=F)
 
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
@@ -472,6 +496,7 @@ m_general <- tm_shape(grid, bbox = bound) +
                 textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (General)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("미원", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) SPAR to hospital (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
@@ -481,6 +506,7 @@ m_ohca <- tm_shape(grid, bbox = bound) +
                 textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (OHCA)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("미원", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(b) SPAR to hospital (OHCA)", frame=F)
 
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
@@ -519,6 +545,7 @@ m_general <- tm_shape(grid, bbox = bound) +
                 # breaks=c(-Inf, 0.25, 0.5, 0.75, 1, 1.25, Inf)
                 ) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("미원|오송|오창|낭성|가덕|문의", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) Total access (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
@@ -537,6 +564,7 @@ m_ohca <- tm_shape(grid, bbox = bound) +
                 # breaks=c(-Inf, 0.25, 0.5, 0.75, 1, 1.25, Inf)
                 ) +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("미원|오송|오창|낭성|가덕|문의", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(b) Total access (OHCA)", frame=F)
 
 m <- tmap_arrange(m_general, m_ohca, ncol=2)
@@ -558,6 +586,7 @@ m_general <- tm_shape(grid, bbox = bound) +
                 textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (General)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("미원|오송|오창|낭성|가덕|문의", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(a) SPAR of total access (General)", frame=F) +
         tm_compass(position = c("left", "bottom")) +
         tm_scale_bar(position = c("left", "bottom"), breaks = c(0, 5, 10), text.size = 0.6)
@@ -567,6 +596,7 @@ m_ohca <- tm_shape(grid, bbox = bound) +
                 textNA = "Inaccessible",
                 breaks = c(-Inf, 0.5, 0.75, 1, 1.25, 1.5, Inf), title="SPAR (OHCA)") +
         tm_shape(study_area) + tm_borders(col = "gray40") +
+        # tm_shape(filter(dong, grepl("미원|오송|오창|낭성|가덕|문의", name))) + tm_text(text="name", size = .8, shadow = T, fontface = 'bold') +
         tm_layout(title = "(b) SPAR of total access (OHCA)", frame=F)
 
 m <- tmap_arrange(m_general, m_ohca, ncol=2)

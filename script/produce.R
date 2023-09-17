@@ -9,7 +9,7 @@ library(tidyverse)
 library(sf)
 library(tmap)
 library(data.table)
-
+library(openxlsx)
 
 # OHCA likelihood -----------------------------
 
@@ -126,19 +126,39 @@ bounding <- st_bbox(buffer_sgg)
 background_maps <- tm_shape(buffer_sgg) + tm_borders(col = "gray20", lwd = .5) +
         tm_shape(study_area_union) + tm_borders(col="red2", lwd=1.5)
 
+# emd
+dong <- st_read("data/raw/bnd_dong_00_2021_2021/bnd_dong_00_2021_2021_2Q.shp") 
+dong.ppp <- st_centroid(dong)
+idx <- st_intersects(dong.ppp, buffer_sgg %>% filter(SIGUNGU_NM == "청주시"))
+selected <- dong.ppp[which(lengths(idx) > 0),]
+
+dong <- dong %>% filter(ADM_DR_CD %in% selected$ADM_DR_CD)
+
+tm_shape(dong) + tm_polygons() + tm_text(text="ADM_DR_NM", size = .8, remove.overlap = T, shadow = T, fontface = 'bold')
+
+xy <- st_bbox(dong)
+xy[1] <- xy$xmin + 12000
+xy[3] <- xy$xmax - 18000
+xy[2] <- xy$ymin + 18000
+xy[4] <- xy$ymax - 10000
+        
+tm_shape(dong, bbox=xy) + tm_polygons() + tm_text(text="ADM_DR_NM", size=.6)
+
 # population
-g1 <- tm_shape(demand, bbox = bounding) +
+g1 <- tm_shape(demand %>% filter(demand>0), bbox = bounding) +
         tm_fill(col="demand", 
-                # style="quantile", n=5, 
-                breaks = c(-Inf, 100,  500, 750, 1000, 2000, Inf),
+                style="quantile", n=5,
+                # breaks = c(-Inf, 100,  500, 750, 1000, 2000, Inf),
                 palette="viridis", title = "General population") +
+        tm_shape(demand %>% filter(demand == 0)) + tm_fill(col="gray90") +
         background_maps +
         tm_layout(title = "(a) General population", frame = FALSE, legend.position = c("left", "bottom"))
-g2 <- tm_shape(demand, bbox = bounding) +
+g2 <- tm_shape(demand %>% filter(demand_ohca>0), bbox = bounding) +
         tm_fill(col="demand_ohca", 
-                # style="quantile", n=5, 
-                breaks = c(-Inf, 100,  500, 750, 1000, 2000, Inf),
+                style="quantile", n=5,
+                # breaks = c(-Inf, 100,  500, 750, 1000, 2000, Inf),
                 palette="viridis", title = "OHCA population") +
+        tm_shape(demand %>% filter(demand == 0)) + tm_fill(col="gray90") +
         background_maps +
         tm_layout(title = "(b) OHCA population", frame = FALSE, legend.position = c("left", "bottom"))
 g2
@@ -163,10 +183,21 @@ s2 <- background_maps +
         tm_bubbles(size="Beds") +
         tm_layout(title = "(e) Hospital locations", frame = FALSE, legend.position = c("left", "bottom"))
 
-m <- tmap_arrange(g1, g2, r, s1, s2, nrow=2)
+name <- tm_shape(dong) + 
+        tm_polygons(col="gray90") + 
+        tm_text(text="ADM_DR_NM", size = .8, remove.overlap = T, shadow = T, fontface = 'bold') +
+        tm_compass(position = c("right", "bottom")) +
+        tm_scale_bar(position = c("right", "bottom"), breaks=c(0, 5, 10))+
+        tm_layout(title = "(f) Place names", frame = FALSE)
+
+m <- tmap_arrange(g1, g2, r, s1, s2, name, nrow=2)
 tmap_save(m, "output/fig/data_used.png", dpi=300, width=15, height=10, units="in")
 #
 
+
+grid_percent_within_4_min_fire <- grid %>% filter(fire_min_time <= 4) %>% nrow() / nrow(grid) * 100
+summary(grid$fire_min_time)
+grid_percent_within_5_min_ems <- grid %>% filter(ems_min_time <= 5) %>% nrow() / nrow(grid) * 100
 
 library(openxlsx)
 xlsx <- read.xlsx(xlsxFile = file.path("data/raw", "cardiac_data", "ohca_21.xlsx"), sheet = 1)
